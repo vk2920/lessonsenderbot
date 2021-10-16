@@ -1,6 +1,7 @@
 import logging
 import os
 import datetime
+import random
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher import FSMContext
@@ -41,7 +42,7 @@ std_keyboard = ReplyKeyboardMarkup()
 std_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
 std_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
 std_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
-std_keyboard.row(KeyboardButton("Сменить группу"))
+std_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))
 
 day_keyboard = ReplyKeyboardMarkup()
 day_keyboard.row(KeyboardButton("ПН Нечёт"), KeyboardButton("ВТ Нечёт"), KeyboardButton("СР Нечёт"))
@@ -163,7 +164,10 @@ async def start_bot(message: types.Message):
     debug_log(message, debug_message="Первое сообщение (или команда перенастройки)")
     markup = ReplyKeyboardMarkup()
     for i in range(0, len(config.institutes), 2):
-        markup.row(KeyboardButton(config.institutes[i]), KeyboardButton(config.institutes[i + 1]))
+        try:
+            markup.row(KeyboardButton(config.institutes[i]), KeyboardButton(config.institutes[i + 1]))
+        except IndexError as _ex:
+            markup.add(KeyboardButton(config.institutes[i]))
 
     await message.answer(f"Привет, {message.from_user.first_name})\nМеня зовут Базилик.\nСейчас я хочу, чтобы ты "
                          f"рассказал мне немного о своей студенческой жизни, чтобы я знал, какое расписание для тебя "
@@ -300,6 +304,11 @@ async def command_execute(message: types.Message):
             await message.answer(f"Ты что-то хотел? А, точно, группу сменить. Помнишь, как выбирал свою группу в "
                                  f"начале?\nДавай повторим этот процесс)", reply_markup=markup)
             await StartSetting.select_institute.set()
+        case "цитата":
+            await message.answer("Список возможных цитат будет периодически дополняться", reply_markup=std_keyboard,
+                                 parse_mode=types.ParseMode.MARKDOWN)
+            await message.answer(random.choice(config.phrases), reply_markup=std_keyboard,
+                                 parse_mode=types.ParseMode.MARKDOWN)
         case _:
             await message.reply("Ну и чё ты написал?\nЧто я должен сделать?\nЛадно, я притворюсь, что этого не было")
 
