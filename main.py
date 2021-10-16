@@ -310,8 +310,6 @@ async def command_execute(message: types.Message):
                                  f"начале?\nДавай повторим этот процесс)", reply_markup=markup)
             await StartSetting.select_institute.set()
         case "цитата":
-            await message.answer("Список возможных цитат будет периодически дополняться", reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
             await message.answer(random.choice(config.phrases), reply_markup=std_keyboard,
                                  parse_mode=types.ParseMode.MARKDOWN)
         case _:
