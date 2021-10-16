@@ -1,3 +1,7 @@
 venv
 .idea
 __pycache__
+.idea/misc.xml
+.idea/PairsSenderBot.iml
+__pycache__/config.cpython-310.pyc
+__pycache__/database.cpython-310.pyc
