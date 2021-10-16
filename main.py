@@ -8,7 +8,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.utils.markdown import bold, italic, code
+from aiogram.utils.markdown import bold, italic, code, link
 import emoji
 
 import config
@@ -173,6 +173,11 @@ async def start_bot(message: types.Message):
                          f"рассказал мне немного о своей студенческой жизни, чтобы я знал, какое расписание для тебя "
                          f"будет актуально.\nДля начала выбери свой институт.\n(Не бойся выбирать ИИТУТС, я никому об "
                          f"этом не расскажу " + emoji.emojize(":wink:", use_aliases=True) + f")", reply_markup=markup)
+    # await message.answer(f"Не хочется этого рассказывать, но я немножко глуп...\nПроблема заключается в том, что я не"
+    #                      f" могу узнать актуальное расписание с сайта СевГУ.\n\nЕсли ты хочешь попробовать свои силы,"
+    #                      f" то советую почитать " +
+    #                      link("объявление", "https://github.com/vk2920/LessonSender/blob/master/README.md"),
+    #                      reply_markup=markup)
     await StartSetting.select_institute.set()
 
 
