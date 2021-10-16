@@ -176,7 +176,7 @@ async def start_bot(message: types.Message):
     # await message.answer(f"Не хочется этого рассказывать, но я немножко глуп...\nПроблема заключается в том, что я не"
     #                      f" могу узнать актуальное расписание с сайта СевГУ.\n\nЕсли ты хочешь попробовать свои силы,"
     #                      f" то советую почитать " +
-    #                      link("объявление", "https://github.com/vk2920/LessonSender/blob/master/README.md"),
+    #                      link("объявление", "https://github.com/vk2920/lessonsenderbot/blob/main/README.md"),
     #                      reply_markup=markup)
     await StartSetting.select_institute.set()
 
