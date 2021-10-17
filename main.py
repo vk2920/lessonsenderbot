@@ -2,6 +2,7 @@ import logging
 import os
 import datetime
 import random
+import asyncio
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher import FSMContext
@@ -51,6 +52,18 @@ day_keyboard.row(KeyboardButton("ПН Чёт"), KeyboardButton("ВТ Чёт"), K
 day_keyboard.row(KeyboardButton("ЧТ Чёт"), KeyboardButton("ПТ Чёт"), KeyboardButton("СБ Чёт"))
 
 days_of_week = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+
+
+async def auto_phrase_sender():
+    while True:
+        chat_id = db.r_get_random_chat_id()
+        try:
+            print(f"Получен ID чата: {chat_id}")
+            if chat_id != 0:
+                await bot.send_message(chat_id, random.choice(config.phrases), parse_mode=types.ParseMode.MARKDOWN)
+        except Exception as _ex:
+            print("Ошибка отправки запланированного сообщения", _ex)
+        await asyncio.sleep(3597)
 
 
 def print_pairs(pairs: list, day_of_week: int, even_week: bool, with_id=False):
@@ -271,6 +284,7 @@ async def day_of_week_msg(message: types.Message, state: FSMContext):
 @dp.message_handler()  # Реакция бота на сообщение для выполнения определённой команды
 async def command_execute(message: types.Message):
     debug_log(message, "Вызов функции выполнения команды для зарегистрированного пользователя")
+    db.w_set_chat_id(user_id = message.from_user.id, chat_id=message.chat.id)
     match message.text.lower():
         case "сегодня":
             await message.answer(get_today_by_id(message.from_user.id).replace("\\", ""), reply_markup=std_keyboard,
@@ -317,4 +331,7 @@ async def command_execute(message: types.Message):
 
 
 if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.create_task(auto_phrase_sender())
+
     executor.start_polling(dp, skip_updates=True)

@@ -40,6 +40,28 @@ class DataBase:
             group = list(cur.fetchone())[0]
             return group
 
+    def r_get_random_chat_id(self):
+        with self._connection.cursor() as cur:
+            sql = "SELECT chat_id FROM public.users ORDER BY RANDOM() LIMIT 1"
+            cur.execute(sql)
+            chat_id = list(cur.fetchone())[0]
+            if chat_id is not None and chat_id != "" and chat_id != 0:
+                return int(chat_id)
+            else:
+                return 0
+
+    def w_set_chat_id(self, user_id: int, chat_id: int):
+        """
+        :param user_id: ID пользователя в ТГ
+        :param chat_id: ID чата с данным пользователем
+        :return: True, если запись произведена успешно, иначе False
+        """
+        with self._connection.cursor() as cur:
+            sql = f"UPDATE public.users SET chat_id = {chat_id} WHERE tg_id = {user_id}"
+            cur.execute(sql)
+        self._connection.commit()
+        return True
+
     def w_register_user_by_id(self, tg_id: int, name: str, group: str):
         """
         :param tg_id: id пользователя в ТГ (int)
