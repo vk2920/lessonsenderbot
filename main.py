@@ -29,6 +29,7 @@ class UserStates(StatesGroup):
 
 
 API_TOKEN = os.environ['BOT_TOKEN']
+ADMINS = [470985286]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -110,7 +111,7 @@ def get_today(group: str):
     msg = ""
     if today != 6:  # Если сегодня не воскресенье
         pairs = db.r_get_pairs_by_group(day_of_week=today, even_week=even_week, group=group)
-        msg += print_pairs(pairs, today, even_week)
+        msg += print_pairs(pairs, today, even_week, with_id=(user_id in ADMINS))
     return msg
 
 
@@ -121,7 +122,7 @@ def get_today_by_id(user_id: int):
     if today != 6:  # Если сегодня не воскресенье
         group = db.r_get_user_group(tg_id=user_id)
         pairs = db.r_get_pairs_by_group(day_of_week=today + 1, even_week=even_week, group=group)
-        msg += print_pairs(pairs, today + 1, even_week)
+        msg += print_pairs(pairs, today + 1, even_week, with_id=(user_id in ADMINS))
     return msg
 
 
@@ -136,7 +137,7 @@ def get_next_day(group: str):
 
     if tomorrow != 6:  # Если завтра не воскресенье
         pairs = db.r_get_pairs_by_group(day_of_week=tomorrow + 1, even_week=even_week, group=group)
-        msg += print_pairs(pairs, tomorrow + 1, even_week)
+        msg += print_pairs(pairs, tomorrow + 1, even_week, with_id=(user_id in ADMINS))
     return msg
 
 
@@ -158,7 +159,7 @@ def get_next_day_by_id(user_id: int):
     if tomorrow != 6:  # Если завтра не воскресенье
         group = db.r_get_user_group(tg_id=user_id)
         pairs = db.r_get_pairs_by_group(day_of_week=tomorrow + 1, even_week=even_week, group=group)
-        msg += print_pairs(pairs, tomorrow + 1, even_week)
+        msg += print_pairs(pairs, tomorrow + 1, even_week, with_id=(user_id in ADMINS))
     return msg
 
 
@@ -167,7 +168,7 @@ def get_week(group, even_week):
     for i in range(1, 7):
         msg += bold(days_of_week[i]) + "\n"
         pairs = db.r_get_pairs_by_group(day_of_week=i, even_week=even_week, group=group)
-        msg += print_pairs(pairs, i, even_week)
+        msg += print_pairs(pairs, i, even_week, with_id=(user_id in ADMINS))
         msg += "\n"
     return msg
 
