@@ -9,6 +9,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.utils import exceptions
 from aiogram.utils.markdown import bold, italic, code, link
 import emoji
 
@@ -286,52 +287,61 @@ async def day_of_week_msg(message: types.Message, state: FSMContext):
 @dp.message_handler()  # Реакция бота на сообщение для выполнения определённой команды
 async def command_execute(message: types.Message):
     debug_log(message, "Вызов функции выполнения команды для зарегистрированного пользователя")
-    db.w_set_chat_id(user_id = message.from_user.id, chat_id=message.chat.id)
-    match message.text.lower():
-        case "сегодня":
-            await message.answer(get_today_by_id(message.from_user.id).replace("\\", ""), reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
-        case "завтра":
-            await message.answer(get_next_day_by_id(message.from_user.id).replace("\\", ""), reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
-        case "нечёт":
-            group = db.r_get_user_group(message.from_user.id)
-            await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
-                                 reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
-        case "чёт":
-            group = db.r_get_user_group(message.from_user.id)
-            await message.answer(get_week(group, True, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
-                                 reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
-        case "всё":
-            group = db.r_get_user_group(message.from_user.id)
-            await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", "") +
-                                 "\n\n" + get_week(group, True, with_id=(message.from_user.id in ADMINS)).replace("\\",
-                                                                                                                  ""),
-                                 reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
-        case "пары":
-            await message.answer(get_today_by_id(message.from_user.id).replace("\\", "") + "\n\n" +
-                                 get_next_day_by_id(message.from_user.id).replace("\\", ""), reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
-        case "конкретный день":
-            await message.answer("И снова привет)\nЯ внезапно прилетел из параллельной вселенной, чтобы выполнить свой "
-                                 "долг\nЕсли я не ошибаюсь, тебе нужно расписание на конкретный день\nЧто ж...  Выбирай"
-                                 " день на виртуальной клавиатуре и получишь своё расписание)",
-                                 reply_markup=day_keyboard)
-            await UserStates.day_of_week.set()
-        case "сменить группу":
-            markup = ReplyKeyboardMarkup()
-            for i in range(0, len(config.institutes), 2):
-                markup.row(KeyboardButton(config.institutes[i]), KeyboardButton(config.institutes[i + 1]))
+    db.w_set_chat_id(user_id=message.from_user.id, chat_id=message.chat.id)
+    try:
+        match message.text.lower():
+            case "сегодня":
+                await message.answer(get_today_by_id(message.from_user.id).replace("\\", ""),
+                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+            case "завтра":
+                await message.answer(get_next_day_by_id(message.from_user.id).replace("\\", ""),
+                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+            case "нечёт":
+                group = db.r_get_user_group(message.from_user.id)
+                await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
+                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+            case "чёт":
+                group = db.r_get_user_group(message.from_user.id)
+                await message.answer(get_week(group, True, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
+                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+            case "всё":
+                group = db.r_get_user_group(message.from_user.id)
+                await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", "")
+                                     + "\n\n" + get_week(group, True,
+                                                         with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
+                                     reply_markup=std_keyboard,
+                                     parse_mode=types.ParseMode.MARKDOWN)
+            case "пары":
+                await message.answer(get_today_by_id(message.from_user.id).replace("\\", "") + "\n\n" +
+                                     get_next_day_by_id(message.from_user.id).replace("\\", ""),
+                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+            case "конкретный день":
+                await message.answer("И снова привет)\nЯ внезапно прилетел из параллельной вселенной, чтобы выполнить "
+                                     "свой долг\nЕсли я не ошибаюсь, тебе нужно расписание на конкретный день\n"
+                                     "Что ж...  Выбирай день на виртуальной клавиатуре и получишь своё расписание)",
+                                     reply_markup=day_keyboard)
+                await UserStates.day_of_week.set()
+            case "сменить группу":
+                markup = ReplyKeyboardMarkup()
+                for i in range(0, len(config.institutes), 2):
+                    markup.row(KeyboardButton(config.institutes[i]), KeyboardButton(config.institutes[i + 1]))
 
-            await message.answer(f"Ты что-то хотел? А, точно, группу сменить. Помнишь, как выбирал свою группу в "
-                                 f"начале?\nДавай повторим этот процесс)", reply_markup=markup)
-            await StartSetting.select_institute.set()
-        case "цитата":
-            await message.answer(random.choice(config.phrases), reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
-        case _:
-            await message.reply("Ну и чё ты написал?\nЧто я должен сделать?\nЛадно, я притворюсь, что этого не было")
+                await message.answer(f"Ты что-то хотел? А, точно, группу сменить. Помнишь, как выбирал свою группу в "
+                                     f"начале?\nДавай повторим этот процесс)", reply_markup=markup)
+                await StartSetting.select_institute.set()
+            case "цитата":
+                await message.answer(random.choice(config.phrases), reply_markup=std_keyboard,
+                                     parse_mode=types.ParseMode.MARKDOWN)
+            case _:
+                await message.reply("Ну и чё ты написал?\nЧто я должен сделать?\n"
+                                    "Ладно, я притворюсь, что этого не было")
+
+    except exceptions.MessageIsTooLong as _ex:
+        logging.warning(_ex)
+        await message.answer("Я бы и рад скинуть тебе твоё расписание... \n"
+                             "Но оно слишком большое, и ТГ не позволяет сделать этого (\n"
+                             "Попробуй не пытаться узнать расписание на 2 недели\n"
+                             "Возможно, такой ход помощет нам обрести связь)", reply_markup=std_keyboard)
 
 
 if __name__ == '__main__':
