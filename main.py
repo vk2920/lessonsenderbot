@@ -111,7 +111,7 @@ def get_today(group: str):
     msg = ""
     if today != 6:  # Если сегодня не воскресенье
         pairs = db.r_get_pairs_by_group(day_of_week=today, even_week=even_week, group=group)
-        msg += print_pairs(pairs, today, even_week, with_id=(user_id in ADMINS))
+        msg += print_pairs(pairs, today, even_week)
     return msg
 
 
@@ -137,7 +137,7 @@ def get_next_day(group: str):
 
     if tomorrow != 6:  # Если завтра не воскресенье
         pairs = db.r_get_pairs_by_group(day_of_week=tomorrow + 1, even_week=even_week, group=group)
-        msg += print_pairs(pairs, tomorrow + 1, even_week, with_id=(user_id in ADMINS))
+        msg += print_pairs(pairs, tomorrow + 1, even_week)
     return msg
 
 
@@ -163,12 +163,12 @@ def get_next_day_by_id(user_id: int):
     return msg
 
 
-def get_week(group, even_week):
+def get_week(group, even_week, with_id=False):
     msg = ""
     for i in range(1, 7):
         msg += bold(days_of_week[i]) + "\n"
         pairs = db.r_get_pairs_by_group(day_of_week=i, even_week=even_week, group=group)
-        msg += print_pairs(pairs, i, even_week, with_id=(user_id in ADMINS))
+        msg += print_pairs(pairs=pairs, day_of_week=i, even_week=even_week, with_id=with_id)
         msg += "\n"
     return msg
 
@@ -296,16 +296,18 @@ async def command_execute(message: types.Message):
                                  parse_mode=types.ParseMode.MARKDOWN)
         case "нечёт":
             group = db.r_get_user_group(message.from_user.id)
-            await message.answer(get_week(group, False).replace("\\", ""), reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
+            await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
+                                 reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
         case "чёт":
             group = db.r_get_user_group(message.from_user.id)
-            await message.answer(get_week(group, True).replace("\\", ""), reply_markup=std_keyboard,
-                                 parse_mode=types.ParseMode.MARKDOWN)
+            await message.answer(get_week(group, True, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
+                                 reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
         case "всё":
             group = db.r_get_user_group(message.from_user.id)
-            await message.answer(get_week(group, False).replace("\\", "") + "\n\n" +
-                                 get_week(group, True).replace("\\", ""), reply_markup=std_keyboard,
+            await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", "") +
+                                 "\n\n" + get_week(group, True, with_id=(message.from_user.id in ADMINS)).replace("\\",
+                                                                                                                  ""),
+                                 reply_markup=std_keyboard,
                                  parse_mode=types.ParseMode.MARKDOWN)
         case "пары":
             await message.answer(get_today_by_id(message.from_user.id).replace("\\", "") + "\n\n" +
