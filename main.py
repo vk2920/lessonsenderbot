@@ -30,7 +30,7 @@ class UserStates(StatesGroup):
 
 
 API_TOKEN = os.environ['BOT_TOKEN']
-ADMINS = [470985286]
+ADMINS = [470985286, 1943247578]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
