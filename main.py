@@ -277,8 +277,9 @@ async def day_of_week_msg(message: types.Message, state: FSMContext):
     day_of_week = ["", "пн", "вт", "ср", "чт", "пт", "сб"].index(message.text.lower().split(" ")[0])
     even_week = message.text.lower().split(" ")[1] == "чёт"
     pairs = db.r_get_pairs_by_group(day_of_week, even_week, group)
-    await message.answer(print_pairs(pairs, day_of_week, even_week).replace("\\", ""), reply_markup=std_keyboard,
-                         parse_mode=types.ParseMode.MARKDOWN)
+    await message.answer(print_pairs(pairs, day_of_week, even_week,
+                                     with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
+                         reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
     await state.finish()
 
 
