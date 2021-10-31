@@ -20,7 +20,7 @@ class DataBase:
             logging.error("    2. Траблы с данными в переменных окружения (или их нет)")
             logging.error(f"Хост: {os.environ['DB_HOST']}, User: {os.environ['DB_USER']}, Password: "
                           f"{os.environ['DB_PASSWD']}, DB: {os.environ['DB_NAME']}")
-            # sys.exit()
+            sys.exit()
 
     def r_get_pairs_by_group(self, day_of_week: int, even_week: bool, group: str):
         """
