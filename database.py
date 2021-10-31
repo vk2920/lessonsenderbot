@@ -9,10 +9,10 @@ class DataBase:
     def __init__(self):
         try:
             self._connection = pymysql.connect(
-                'localhost',
-                'root',
-                '15tAi5W2',
-                'public'
+                os.environ['DB_HOST'],
+                os.environ['DB_USER'],
+                os.environ['DB_PASSWD'],
+                os.environ['DB_NAME']
             )
         except Exception as _ex:
             logging.error("Ошибка подключения к БД, возможные причины чуть ниже")
