@@ -29,7 +29,6 @@ class DataBase:
              -- о — очная форма обучения (з — заочная)
         :return: список пар на запрошенный день
         """
-        label .r_gpbg_begin
         try:
             pairs_list = []
             with self._connection.cursor() as cur:
@@ -44,10 +43,9 @@ class DataBase:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
-            goto .r_gpbg_begin
+            return self.r_get_pairs_by_group(day_of_week, even_week, group)
 
     def r_get_user_group(self, tg_id: int):
-        label .r_gug_begin
         try:
             with self._connection.cursor() as cur:
                 cur.execute(f"""SELECT group_name FROM public.users WHERE tg_id = {tg_id} LIMIT 1""")
@@ -57,10 +55,9 @@ class DataBase:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
-            goto .r_gug_begin
+            return self.r_get_user_group(tg_id)
 
     def r_get_random_chat_id(self):
-        label .r_grci_begin
         try:
             with self._connection.cursor() as cur:
                 sql = "SELECT chat_id FROM public.users ORDER BY RANDOM() LIMIT 1"
@@ -74,7 +71,7 @@ class DataBase:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
-            goto .r_grci_begin
+            return self.r_get_random_chat_id()
 
     def w_set_chat_id(self, user_id: int, chat_id: int):
         """
@@ -82,7 +79,6 @@ class DataBase:
         :param chat_id: ID чата с данным пользователем
         :return: True, если запись произведена успешно, иначе False
         """
-        label .w_sci_begin
         try:
             with self._connection.cursor() as cur:
                 sql = f"UPDATE public.users SET chat_id = {chat_id} WHERE tg_id = {user_id}"
@@ -93,7 +89,7 @@ class DataBase:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
-            goto .w_sci_begin
+            return self.w_set_chat_id(user_id, chat_id)
 
     def w_register_user_by_id(self, tg_id: int, name: str, group: str):
         """
@@ -102,7 +98,6 @@ class DataBase:
         :param group: группа пользователя в формате
         :return: True, если запись произведена успешно, иначе False
         """
-        label .w_rubi_begin
         try:
             with self._connection.cursor() as cur:
                 sql = f"SELECT tg_id FROM public.users WHERE tg_id = {tg_id}"
@@ -118,11 +113,10 @@ class DataBase:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
-            goto .w_rubi_begin
+            return self.w_register_user_by_id(tg_id, name, group)
 
     # Административные метода класса DataBase
     def w_remove_pair_by_pair_id(self, pair_id: int):
-        label .w_rpbpi_begin
         try:
             with self._connection.cursor() as cur:
                 sql = f"DELETE FROM public.pairs WHERE id = {pair_id}"
@@ -133,4 +127,4 @@ class DataBase:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
-            goto .w_rpbpi_begin
+            return self.w_remove_pair_by_pair_id(pair_id)
