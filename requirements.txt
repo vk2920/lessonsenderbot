@@ -1,4 +1,3 @@
 aiogram
-psycopg
 emoji
-goto-statement
+PyMySQL

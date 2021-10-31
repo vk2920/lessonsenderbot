@@ -1,22 +1,25 @@
 import logging
 import os
 import sys
-from goto import with_goto
 
-import psycopg
+import pymysql
 
 
 class DataBase:
     def __init__(self):
         try:
-            self._connection = psycopg.connect(conninfo=os.environ['DATABASE_URL'])
+            self._connection = pymysql.connect(
+                'localhost',
+                'root',
+                '15tAi5W2',
+                'public'
+            )
         except Exception as _ex:
             logging.error("Ошибка подключения к БД, возможные причины чуть ниже")
             logging.error("    1. Траблы с подключением")
             logging.error("    2. Траблы с данными в переменных окружения (или их нет)")
             sys.exit()
 
-    @with_goto
     def r_get_pairs_by_group(self, day_of_week: int, even_week: bool, group: str):
         """
         :param day_of_week: порядковый номер дня недели (int, 1~6)
