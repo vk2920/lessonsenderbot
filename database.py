@@ -8,11 +8,13 @@ import pymysql
 class DataBase:
     def __init__(self):
         try:
+            # pymysql.install_as_MySQLdb()
             self._connection = pymysql.connect(
-                os.environ['DB_HOST'],
-                os.environ['DB_USER'],
-                os.environ['DB_PASSWD'],
-                os.environ['DB_NAME']
+                host=os.environ['DB_HOST'],
+                port=os.environ['DB_PORT'],
+                user=os.environ['DB_USER'],
+                password=os.environ['DB_PASSWD'],
+                database=os.environ['DB_NAME']
             )
         except pymysql.err.OperationalError as _ex:
             logging.error(" Ошибка подключения к БД, возможные причины чуть ниже")
@@ -20,6 +22,8 @@ class DataBase:
             logging.error("     2. Траблы с данными в переменных окружения (или их нет)")
             logging.error(f" Хост: {os.environ['DB_HOST']},\n User: {os.environ['DB_USER']},\n Password: "
                           f"{os.environ['DB_PASSWD']},\n DB: {os.environ['DB_NAME']}")
+            logging.error(" А вот и содержимое исключения:")
+            logging.error(_ex)
             sys.exit()
 
     def r_get_pairs_by_group(self, day_of_week: int, even_week: bool, group: str):
