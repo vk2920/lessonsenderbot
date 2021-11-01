@@ -14,12 +14,12 @@ class DataBase:
                 os.environ['DB_PASSWD'],
                 os.environ['DB_NAME']
             )
-        except Exception as _ex:
-            logging.error("Ошибка подключения к БД, возможные причины чуть ниже")
-            logging.error("    1. Траблы с подключением")
-            logging.error("    2. Траблы с данными в переменных окружения (или их нет)")
-            logging.error(f"Хост: {os.environ['DB_HOST']}, User: {os.environ['DB_USER']}, Password: "
-                          f"{os.environ['DB_PASSWD']}, DB: {os.environ['DB_NAME']}")
+        except pymysql.err.OperationalError as _ex:
+            logging.error(" Ошибка подключения к БД, возможные причины чуть ниже")
+            logging.error("     1. Траблы с подключением")
+            logging.error("     2. Траблы с данными в переменных окружения (или их нет)")
+            logging.error(f" Хост: {os.environ['DB_HOST']},\n User: {os.environ['DB_USER']},\n Password: "
+                          f"{os.environ['DB_PASSWD']},\n DB: {os.environ['DB_NAME']}")
             sys.exit()
 
     def r_get_pairs_by_group(self, day_of_week: int, even_week: bool, group: str):
@@ -44,7 +44,7 @@ class DataBase:
                 for row in cur.fetchall():
                     pairs_list.append(row)
             return pairs_list
-        except pymysql.OperationalError as _ex:
+        except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
@@ -56,7 +56,7 @@ class DataBase:
                 cur.execute(f"""SELECT group_name FROM public.users WHERE tg_id = {tg_id} LIMIT 1""")
                 group = list(cur.fetchone())[0]
                 return group
-        except pymysql.OperationalError as _ex:
+        except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
@@ -72,7 +72,7 @@ class DataBase:
                     return int(chat_id)
                 else:
                     return 0
-        except pymysql.OperationalError as _ex:
+        except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
@@ -90,7 +90,7 @@ class DataBase:
                 cur.execute(sql)
             self._connection.commit()
             return True
-        except pymysql.OperationalError as _ex:
+        except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
@@ -114,7 +114,7 @@ class DataBase:
                 cur.execute(sql)
                 self._connection.commit()
             return True
-        except pymysql.OperationalError as _ex:
+        except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
@@ -128,7 +128,7 @@ class DataBase:
                 cur.execute(sql)
                 self._connection.commit()
             return True
-        except pymysql.OperationalError as _ex:
+        except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
