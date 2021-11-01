@@ -69,7 +69,7 @@ class DataBase:
     def r_get_random_chat_id(self):
         try:
             with self._connection.cursor() as cur:
-                sql = "SELECT chat_id FROM public.users ORDER BY RANDOM() LIMIT 1"
+                sql = "SELECT chat_id FROM public.users ORDER BY RAND() LIMIT 1"
                 cur.execute(sql)
                 chat_id = list(cur.fetchone())[0]
                 if chat_id is not None and chat_id != "" and chat_id != 0:
