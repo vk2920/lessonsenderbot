@@ -11,7 +11,7 @@ class DataBase:
             # pymysql.install_as_MySQLdb()
             self._connection = pymysql.connect(
                 host=os.environ['DB_HOST'],
-                port=os.environ['DB_PORT'],
+                port=int(os.environ['DB_PORT']),
                 user=os.environ['DB_USER'],
                 password=os.environ['DB_PASSWD'],
                 database=os.environ['DB_NAME']
