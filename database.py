@@ -131,9 +131,53 @@ class DataBase:
                 sql = f"DELETE FROM public.pairs WHERE id = {pair_id}"
                 cur.execute(sql)
                 self._connection.commit()
-            return True
+                return True
         except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
             self.__init__()
             return self.w_remove_pair_by_pair_id(pair_id)
+
+    def w_move_pair_by_pair_id(self, pair_id: int, day_of_week: int, ordinal: int):
+        try:
+            with self._connection.cursor() as cur:
+                sql = f"UPDATE public.pairs SET day_of_week = {day_of_week}, ordinal = {ordinal} WHERE id = {pair_id}"
+                cur.execute(sql)
+                self._connection.commit()
+                return True
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.w_move_pair_by_pair_id(pair_id, day_of_week, ordinal)
+
+    def w_change_pair_location_by_pair_id(self, pair_id: int, location: str):
+        try:
+            with self._connection.cursor() as cur:
+                sql = f"UPDATE public.pairs SET location = {location} WHERE id = {pair_id};"
+                cur.execute(sql)
+                self._connection.commit()
+                return True
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.w_change_pair_location_by_pair_id(pair_id, location)
+
+    def w_add_pair(self, group: str, even_week: bool, day_of_week: int, ordinal: int, lesson: str, teacher: str,
+                   pair_type: str, location: str):
+        try:
+            with self._connection.cursor() as cur:
+                sql = f"INSERT INTO public.pairs (group, even_week, day_of_week, ordinal, lesson, teacher, type, " \
+                      f"location) VALUES ('{group}', {even_week}, {day_of_week}, {ordinal}, '{lesson}', '{teacher}'," \
+                      f"'{pair_type}', '{location}');"
+                cur.execute(sql)
+                self._connection.commit()
+                cur.execute("SELECT id FROM public.pairs ORDER BY id DESK LIMIT 1;")
+                return True
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.w_add_pair(group, even_week, day_of_week, ordinal, lesson, teacher, pair_type, location)
+

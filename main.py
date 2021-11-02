@@ -29,6 +29,10 @@ class UserStates(StatesGroup):
     day_of_week = State()
 
 
+class AdminStates(StatesGroup):
+    main = State()
+
+
 API_TOKEN = os.environ['BOT_TOKEN']
 ADMINS = [470985286, 1943247578]
 
@@ -46,6 +50,12 @@ std_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton
 std_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
 std_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
 std_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))
+
+admin_keyboard = ReplyKeyboardMarkup()
+addmin_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
+addmin_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
+addmin_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
+addmin_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Админ"), KeyboardButton("Цитата"))
 
 day_keyboard = ReplyKeyboardMarkup()
 day_keyboard.row(KeyboardButton("ПН Нечёт"), KeyboardButton("ВТ Нечёт"), KeyboardButton("СР Нечёт"))
@@ -184,6 +194,8 @@ async def start_bot(message: types.Message):
         except IndexError as _ex:
             markup.add(KeyboardButton(config.institutes[i]))
 
+    markup.add(KeyboardButton("Выход"))
+
     await message.answer(f"Привет, {message.from_user.first_name})\nМеня зовут Базилик.\nСейчас я хочу, чтобы ты "
                          f"рассказал мне немного о своей студенческой жизни, чтобы я знал, какое расписание для тебя "
                          f"будет актуально.\nДля начала выбери свой институт.\n(Не бойся выбирать ИИТУТС, я никому об "
@@ -210,6 +222,8 @@ async def start_setting_select_institute(message: types.Message, state: FSMConte
         markup.row(KeyboardButton("1"), KeyboardButton("2"), KeyboardButton("3"))
         markup.row(KeyboardButton("4"), KeyboardButton("5"), KeyboardButton("6"))
 
+        markup.add(KeyboardButton("Выход"))
+
         await message.reply("Я запомнил твой институт\nТеперь выбери курс",
                             reply_markup=markup)
         await StartSetting.next()
@@ -218,6 +232,13 @@ async def start_setting_select_institute(message: types.Message, state: FSMConte
 @dp.message_handler(state=StartSetting.select_course)  # Выбор курса, переход к выбору группы
 async def start_setting_select_institute(message: types.Message, state: FSMContext):
     debug_log(message, debug_message="Выбор курса, переход к выбору группы")
+    if message.text.lower() == "выход":
+        await state.finish()
+        await message.answer("Был совершён выход из режима настройки\n\n"
+                             "Если группа уже была настроена, то ничего не изменилось\n"
+                             "Если группа не была настроена, то она остаётся не настроенной.\n"
+                             "Не волнуйся, если твоей группы нет, то и расписания для неё пока нет.")
+        return 0
     if not message.text.isnumeric():
         await message.reply("Упс... Кажется что-то пошло не так\nПерепроверь введённый номер курса, "
                             "это должно быть просто число.")
@@ -242,6 +263,8 @@ async def start_setting_select_institute(message: types.Message, state: FSMConte
         group2 = group2[0].upper() + "/" + group2[1]
         markup.row(KeyboardButton(group1), KeyboardButton(group2))
 
+    markup.add(KeyboardButton("Выход"))
+
     await message.reply("Я запомнил твой курс\nТеперь выбери группу)",
                         reply_markup=markup)
     await StartSetting.next()
@@ -250,6 +273,13 @@ async def start_setting_select_institute(message: types.Message, state: FSMConte
 @dp.message_handler(state=StartSetting.select_group)  # Выбор группы, завершение настройки
 async def start_setting_select_group(message: types.Message, state: FSMContext):
     debug_log(message, debug_message="Выбор группы, завершение настройки")
+    if message.text.lower() == "выход":
+        await state.finish()
+        await message.answer("Был совершён выход из режима настройки\n\n"
+                             "Если группа уже была настроена, то ничего не изменилось\n"
+                             "Если группа не была настроена, то она остаётся не настроенной.\n"
+                             "Не волнуйся, если твоей группы нет, то и расписания для неё пока нет.")
+        return 0
     async with state.proxy() as data:
         group_list = config.groups[data['institute_index']][data['course'] - 1]
     if message.text.lower() in group_list:
@@ -284,6 +314,89 @@ async def day_of_week_msg(message: types.Message, state: FSMContext):
     await state.finish()
 
 
+@dp.message_handler(state=AdminStates.main)
+def admin_actions(message: types.Message, state: FSMContext):
+    match message.text.lower().split(" ")[0]:
+        case "выход":
+            await state.finish()
+            await message.answer("Покидаем панель управления...",
+                                 reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard))
+        case "удалить":
+            if len(message.text.lower().split(" ")) != 2 or not message.text.lower().split(" ")[1].isnumeric():
+                await message.answer("*Удалить _<ID пары для удаления>_*", parse_mode=types.ParseMode.MARKDOWN,
+                                     reply_markup=ReplyKeyboardRemove())
+                return 0
+
+            pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
+            if pair:
+                db.w_remove_pair_by_pair_id(int(message.text.split(" ")[1]))
+                await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ удалена",
+                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+                return 0
+
+            await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+                                 reply_markup=ReplyKeyboardRemove())
+            return 0
+        case "перенести":
+            if len(message.text.lower().split(" ")) != 4 or not message.text.lower().split(" ")[1].isnumeric()\
+                    or not message.text.lower().split(" ")[2].isnumeric()\
+                    or not message.text.lower().split(" ")[3].isnumeric():
+                await message.answer("*Перенести _<ID пары для переноса> <день недели> <номер пары>_*\n"
+                                     "День недели — число, от 1 до 6 (от ПН до СБ)\n"
+                                     "Номер пары — порядковыё номер пары в течение дня (определяет время пары)",
+                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+                return 0
+
+            pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
+            if pair:
+                db.w_move_pair_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
+                                          int(message.text.split(" ")[3]))
+                await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ перенесена\n"
+                                     f"И стала парой *{pair[5]}* _({pair[1]}, {message.text.split(' ')[2]}, "
+                                     f"{message.text.split(' ')[3]})_", parse_mode=types.ParseMode.MARKDOWN,
+                                     reply_markup=ReplyKeyboardRemove())
+                return 0
+
+            await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+                                 reply_markup=ReplyKeyboardRemove())
+            return 0
+        case "сменить_аудиторию":
+            if len(message.text.lower().split(" ")) != 3 or not message.text.lower().split(" ")[1].isnumeric():
+                await message.answer("*Сменить_аудиторию _<ID пары> <Аудитория>_*\n"
+                                     "Аудитория — аудитория, в которой будет проводиться пара",
+                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+                return 0
+
+            pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
+            if pair:
+                db.w_change_pair_location_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
+                                                     int(message.text.split(" ")[3]))
+                await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ перенесена"
+                                     f"в аудиторию {message.text.upper().split(' ')[2]}",
+                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+                return 0
+
+            await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+                                 reply_markup=ReplyKeyboardRemove())
+            return 0
+        # case "добавить":
+        #     if len(message.text.lower().split(" ")) != 9 or not message.text.lower().split(" ")[1].isnumeric():
+        #         await message.answer("*Сменить_аудиторию _<Группа> <Чёт/нечёт> <День_недели> <Номер_пары> "
+        #                              "<Название_пары> <Преподаватели> <Тип_занятия> <Аудитория>_*\n"
+        #                              "Аудитория — аудитория, в которой будет проводиться пара",
+        #                              parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+        #         return 0
+        #
+        #     id = db.w_change_pair_location_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
+        #                                               int(message.text.split(" ")[3]), int(message.text.split(" ")[4]),
+        #                                               message.text.split(" ")[5], message.text.split(" ")[6],
+        #                                               message.text.split(" ")[7], message.text.split(" ")[8])
+        case _:
+            await message.answer("Что-то пошло не по плану, у меня нет команды *" + message.text.split(" ")[0] + "*")
+            await message.answer("Возможно, ты просто забыл выйти из панели управления")
+            return 0
+
+
 @dp.message_handler()  # Реакция бота на сообщение для выполнения определённой команды
 async def command_execute(message: types.Message):
     debug_log(message, "Вызов функции выполнения команды для зарегистрированного пользователя")
@@ -292,29 +405,34 @@ async def command_execute(message: types.Message):
         match message.text.lower():
             case "сегодня":
                 await message.answer(get_today_by_id(message.from_user.id).replace("\\", ""),
-                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+                                     reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
+                                     parse_mode=types.ParseMode.MARKDOWN)
             case "завтра":
                 await message.answer(get_next_day_by_id(message.from_user.id).replace("\\", ""),
-                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+                                     reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
+                                     parse_mode=types.ParseMode.MARKDOWN)
             case "нечёт":
                 group = db.r_get_user_group(message.from_user.id)
                 await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
-                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+                                     reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
+                                     parse_mode=types.ParseMode.MARKDOWN)
             case "чёт":
                 group = db.r_get_user_group(message.from_user.id)
                 await message.answer(get_week(group, True, with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
-                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+                                     reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
+                                     parse_mode=types.ParseMode.MARKDOWN)
             case "всё":
                 group = db.r_get_user_group(message.from_user.id)
                 await message.answer(get_week(group, False, with_id=(message.from_user.id in ADMINS)).replace("\\", "")
                                      + "\n\n" + get_week(group, True,
                                                          with_id=(message.from_user.id in ADMINS)).replace("\\", ""),
-                                     reply_markup=std_keyboard,
+                                     reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
                                      parse_mode=types.ParseMode.MARKDOWN)
             case "пары":
                 await message.answer(get_today_by_id(message.from_user.id).replace("\\", "") + "\n\n" +
                                      get_next_day_by_id(message.from_user.id).replace("\\", ""),
-                                     reply_markup=std_keyboard, parse_mode=types.ParseMode.MARKDOWN)
+                                     reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
+                                     parse_mode=types.ParseMode.MARKDOWN)
             case "конкретный день":
                 await message.answer("И снова привет)\nЯ внезапно прилетел из параллельной вселенной, чтобы выполнить "
                                      "свой долг\nЕсли я не ошибаюсь, тебе нужно расписание на конкретный день\n"
@@ -329,8 +447,17 @@ async def command_execute(message: types.Message):
                 await message.answer(f"Ты что-то хотел? А, точно, группу сменить. Помнишь, как выбирал свою группу в "
                                      f"начале?\nДавай повторим этот процесс)", reply_markup=markup)
                 await StartSetting.select_institute.set()
+            case "админ":
+                if message.from_user.id not in ADMINS:
+                    await message.answer("Мы с тобой очень хорошо знакомы...\n"
+                                         "Но я пока не могу предоставить тебе такой доступ")
+                    return 0
+                await AdminStates.main.set()
+                await message.answer("Панель управления базой данных, будь аккуратнее, мы уже давно на проде",
+                                     reply_markup=ReplyKeyboardRemove())
             case "цитата":
-                await message.answer(random.choice(config.phrases), reply_markup=std_keyboard,
+                await message.answer(random.choice(config.phrases),
+                                     reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
                                      parse_mode=types.ParseMode.MARKDOWN)
             case _:
                 await message.reply("Ну и чё ты написал?\nЧто я должен сделать?\n"
@@ -341,7 +468,8 @@ async def command_execute(message: types.Message):
         await message.answer("Я бы и рад скинуть тебе твоё расписание... \n"
                              "Но оно слишком большое, и ТГ не позволяет сделать этого (\n"
                              "Попробуй не пытаться узнать расписание на 2 недели\n"
-                             "Возможно, такой ход помощет нам обрести связь)", reply_markup=std_keyboard)
+                             "Возможно, такой ход помощет нам обрести связь)",
+                             reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard))
 
 
 if __name__ == '__main__':
