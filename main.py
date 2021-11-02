@@ -52,10 +52,10 @@ std_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardBut
 std_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))
 
 admin_keyboard = ReplyKeyboardMarkup()
-addmin_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
-addmin_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
-addmin_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
-addmin_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Админ"), KeyboardButton("Цитата"))
+admin_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
+admin_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
+admin_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
+admin_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Админ"), KeyboardButton("Цитата"))
 
 day_keyboard = ReplyKeyboardMarkup()
 day_keyboard.row(KeyboardButton("ПН Нечёт"), KeyboardButton("ВТ Нечёт"), KeyboardButton("СР Нечёт"))
