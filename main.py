@@ -315,7 +315,7 @@ async def day_of_week_msg(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(state=AdminStates.main)
-def admin_actions(message: types.Message, state: FSMContext):
+async def admin_actions(message: types.Message, state: FSMContext):
     match message.text.lower().split(" ")[0]:
         case "выход":
             await state.finish()
