@@ -72,10 +72,15 @@ async def auto_phrase_sender():
         try:
             print(f"Получен ID чата: {chat_id}")
             if chat_id != 0:
-                await bot.send_message(chat_id, random.choice(config.phrases), parse_mode=types.ParseMode.MARKDOWN)
+                await bot.send_message(chat_id, get_random_phrase_to_msg(), parse_mode=types.ParseMode.MARKDOWN)
         except Exception as _ex:
             print("Ошибка отправки запланированного сообщения", _ex)
         await asyncio.sleep(3597)
+
+
+def get_random_phrase_to_msg():
+    phrase = db.r_get_random_phrase()
+    return f"*«{phrase[0]}»* © {phrase[1]}"
 
 
 def print_pairs(pairs: list, day_of_week: int, even_week: bool, with_id=False):
@@ -456,7 +461,7 @@ async def command_execute(message: types.Message):
                 await message.answer("Панель управления базой данных, будь аккуратнее, мы уже давно на проде",
                                      reply_markup=ReplyKeyboardRemove())
             case "цитата":
-                await message.answer(random.choice(config.phrases),
+                await message.answer(get_random_phrase_to_msg(),
                                      reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
                                      parse_mode=types.ParseMode.MARKDOWN)
             case _:

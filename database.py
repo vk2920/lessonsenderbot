@@ -82,6 +82,19 @@ class DataBase:
             self.__init__()
             return self.r_get_random_chat_id()
 
+    def r_get_random_phrase(self):
+        try:
+            with self._connection.cursor() as cur:
+                sql = "SELECT phrase, author FROM public.phrases ORDER BY RAND() LIMIT 1"
+                cur.execute(sql)
+                phrase = cur.fetchone()
+                return phrase
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.r_get_random_phrase()
+
     def w_set_chat_id(self, user_id: int, chat_id: int):
         """
         :param user_id: ID пользователя в ТГ
@@ -132,6 +145,19 @@ class DataBase:
                 cur.execute(sql)
                 self._connection.commit()
                 return True
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.w_remove_pair_by_pair_id(pair_id)
+
+    def r_get_pair_by_pair_id(self, pair_id: int):
+        try:
+            with self._connection.cursor() as cur:
+                sql = f"SELECT * FROM public.pairs WHERE id = {pair_id}"
+                cur.execute(sql)
+                self._connection.commit()
+                return cur.fetchone()
         except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
             # Реинициализация объекта для переподключения к БД
