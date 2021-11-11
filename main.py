@@ -80,7 +80,7 @@ async def auto_phrase_sender():
 
 def get_random_phrase_to_msg():
     phrase = db.r_get_random_phrase()
-    return f"*«{phrase[0]}»* © {phrase[1]}"
+    return f"*«{phrase[0]}»*\n© {phrase[1]}"
 
 
 def print_pairs(pairs: list, day_of_week: int, even_week: bool, with_id=False):
