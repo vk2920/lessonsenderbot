@@ -321,85 +321,73 @@ async def day_of_week_msg(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=AdminStates.main)
 async def admin_actions(message: types.Message, state: FSMContext):
-    match message.text.lower().split(" ")[0]:
-        case "выход":
-            await state.finish()
-            await message.answer("Покидаем панель управления...",
-                                 reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard))
-        case "удалить":
-            if len(message.text.lower().split(" ")) != 2 or not message.text.lower().split(" ")[1].isnumeric():
-                await message.answer("*Удалить _<ID пары для удаления>_*", parse_mode=types.ParseMode.MARKDOWN,
-                                     reply_markup=ReplyKeyboardRemove())
-                return 0
-
-            pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
-            if pair:
-                db.w_remove_pair_by_pair_id(int(message.text.split(" ")[1]))
-                await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ удалена",
-                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
-                return 0
-
-            await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+    cmd = message.text.lower().split(" ")[0]
+    if cmd == "выход":
+        await state.finish()
+        await message.answer("Покидаем панель управления...",
+                             reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard))
+    elif cmd == "удалить":
+        if len(message.text.lower().split(" ")) != 2 or not message.text.lower().split(" ")[1].isnumeric():
+            await message.answer("*Удалить _<ID пары для удаления>_*", parse_mode=types.ParseMode.MARKDOWN,
                                  reply_markup=ReplyKeyboardRemove())
             return 0
-        case "перенести":
-            if len(message.text.lower().split(" ")) != 4 or not message.text.lower().split(" ")[1].isnumeric()\
-                    or not message.text.lower().split(" ")[2].isnumeric()\
-                    or not message.text.lower().split(" ")[3].isnumeric():
-                await message.answer("*Перенести _<ID пары для переноса> <день недели> <номер пары>_*\n"
-                                     "День недели — число, от 1 до 6 (от ПН до СБ)\n"
-                                     "Номер пары — порядковыё номер пары в течение дня (определяет время пары)",
-                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
-                return 0
 
-            pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
-            if pair:
-                db.w_move_pair_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
-                                          int(message.text.split(" ")[3]))
-                await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ перенесена\n"
-                                     f"И стала парой *{pair[5]}* _({pair[1]}, {message.text.split(' ')[2]}, "
-                                     f"{message.text.split(' ')[3]})_", parse_mode=types.ParseMode.MARKDOWN,
-                                     reply_markup=ReplyKeyboardRemove())
-                return 0
+        pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
+        if pair:
+            db.w_remove_pair_by_pair_id(int(message.text.split(" ")[1]))
+            await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ удалена",
+                                 parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+            return 0
 
-            await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+        await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+                             reply_markup=ReplyKeyboardRemove())
+        return 0
+    elif cmd == "перенести":
+        if len(message.text.lower().split(" ")) != 4 or not message.text.lower().split(" ")[1].isnumeric()\
+                or not message.text.lower().split(" ")[2].isnumeric()\
+                or not message.text.lower().split(" ")[3].isnumeric():
+            await message.answer("*Перенести _<ID пары для переноса> <день недели> <номер пары>_*\n"
+                                 "День недели — число, от 1 до 6 (от ПН до СБ)\n"
+                                 "Номер пары — порядковыё номер пары в течение дня (определяет время пары)",
+                                 parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+            return 0
+
+        pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
+        if pair:
+            db.w_move_pair_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
+                                      int(message.text.split(" ")[3]))
+            await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ перенесена\n"
+                                 f"И стала парой *{pair[5]}* _({pair[1]}, {message.text.split(' ')[2]}, "
+                                 f"{message.text.split(' ')[3]})_", parse_mode=types.ParseMode.MARKDOWN,
                                  reply_markup=ReplyKeyboardRemove())
             return 0
-        case "сменить_аудиторию":
-            if len(message.text.lower().split(" ")) != 3 or not message.text.lower().split(" ")[1].isnumeric():
-                await message.answer("*Сменить_аудиторию _<ID пары> <Аудитория>_*\n"
-                                     "Аудитория — аудитория, в которой будет проводиться пара",
-                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
-                return 0
 
-            pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
-            if pair:
-                db.w_change_pair_location_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
-                                                     int(message.text.split(" ")[3]))
-                await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ перенесена"
-                                     f"в аудиторию {message.text.upper().split(' ')[2]}",
-                                     parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
-                return 0
+        await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+                             reply_markup=ReplyKeyboardRemove())
+        return 0
+    elif cmd == "сменить_аудиторию":
+        if len(message.text.lower().split(" ")) != 3 or not message.text.lower().split(" ")[1].isnumeric():
+            await message.answer("*Сменить_аудиторию _<ID пары> <Аудитория>_*\n"
+                                 "Аудитория — аудитория, в которой будет проводиться пара",
+                                 parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
+            return 0
 
-            await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
-                                 reply_markup=ReplyKeyboardRemove())
+        pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
+        if pair:
+            db.w_change_pair_location_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
+                                                 int(message.text.split(" ")[3]))
+            await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ перенесена"
+                                 f"в аудиторию {message.text.upper().split(' ')[2]}",
+                                 parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
             return 0
-        # case "добавить":
-        #     if len(message.text.lower().split(" ")) != 9 or not message.text.lower().split(" ")[1].isnumeric():
-        #         await message.answer("*Сменить_аудиторию _<Группа> <Чёт/нечёт> <День_недели> <Номер_пары> "
-        #                              "<Название_пары> <Преподаватели> <Тип_занятия> <Аудитория>_*\n"
-        #                              "Аудитория — аудитория, в которой будет проводиться пара",
-        #                              parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
-        #         return 0
-        #
-        #     id = db.w_change_pair_location_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
-        #                                               int(message.text.split(" ")[3]), int(message.text.split(" ")[4]),
-        #                                               message.text.split(" ")[5], message.text.split(" ")[6],
-        #                                               message.text.split(" ")[7], message.text.split(" ")[8])
-        case _:
-            await message.answer("Что-то пошло не по плану, у меня нет команды *" + message.text.split(" ")[0] + "*")
-            await message.answer("Возможно, ты просто забыл выйти из панели управления")
-            return 0
+
+        await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
+                             reply_markup=ReplyKeyboardRemove())
+        return 0
+    else:
+        await message.answer("Что-то пошло не по плану, у меня нет команды *" + message.text.split(" ")[0] + "*")
+        await message.answer("Возможно, ты просто забыл выйти из панели управления")
+        return 0
 
 
 @dp.message_handler()  # Реакция бота на сообщение для выполнения определённой команды
