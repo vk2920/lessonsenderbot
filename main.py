@@ -356,7 +356,7 @@ async def admin_actions(message: types.Message, state: FSMContext):
         if pair:
             db.w_move_pair_by_pair_id(int(message.text.split(" ")[1]), int(message.text.split(" ")[2]),
                                       int(message.text.split(" ")[3]))
-            await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ перенесена\n"
+            await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pair[3]}, {pair[4]})_ перенесена\n"
                                  f"И стала парой *{pair[5]}* _({pair[1]}, {message.text.split(' ')[2]}, "
                                  f"{message.text.split(' ')[3]})_", parse_mode=types.ParseMode.MARKDOWN,
                                  reply_markup=ReplyKeyboardRemove())
