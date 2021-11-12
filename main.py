@@ -335,7 +335,7 @@ async def admin_actions(message: types.Message, state: FSMContext):
         pair = db.r_get_pair_by_pair_id(int(message.text.split(" ")[1]))
         if pair:
             db.w_remove_pair_by_pair_id(int(message.text.split(" ")[1]))
-            await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pairs[3]}, {pair[4]})_ удалена",
+            await message.answer(f"Пара по дисциплине *{pair[5]}* _({pair[1]}, {pair[3]}, {pair[4]})_ удалена",
                                  parse_mode=types.ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove())
             return 0
 
