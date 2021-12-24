@@ -69,11 +69,13 @@ class DataBase:
     def r_get_random_chat_id(self):
         try:
             with self._connection.cursor() as cur:
-                sql = "SELECT chat_id FROM public.users ORDER BY RAND() LIMIT 1"
+                sql = "SELECT chat_id, phrases FROM public.users ORDER BY RAND() LIMIT 1"
                 cur.execute(sql)
-                chat_id = list(cur.fetchone())[0]
-                if chat_id is not None and chat_id != "" and chat_id != 0:
-                    return int(chat_id)
+                user = list(cur.fetchone())
+                if user[0] is not None and user[0] != "" and user[0] != 0:
+                    user[0] = int(user[0])
+                    user[1] = int(user[1])
+                    return user
                 else:
                     return 0
         except pymysql.err.OperationalError as _ex:
@@ -82,10 +84,33 @@ class DataBase:
             self.__init__()
             return self.r_get_random_chat_id()
 
+    def r_get_pairs_chat_ids(self):
+        try:
+            with self._connection.cursor() as cur:
+                sql = "SELECT chat_id, group_name FROM public.users WHERE pairs = 1"
+                cur.execute(sql)
+                user_list = list(cur.fetchall())
+                users_dict = dict()
+                for user in user_list:
+                    if user[0] is not None and user[0] != "" and user[0] != 0:
+                        user[0] = int(user[0])
+                        if user[1] is not None and user[1] != "":
+                            if users_dict.get(user[1], "no") == "no":
+                                users_dict[user[1]] = list()
+                            users_dict[user[1]].append(user[0])
+
+                return users_dict
+
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.r_get_pairs_chat_ids()
+
     def r_get_random_phrase(self):
         try:
             with self._connection.cursor() as cur:
-                sql = "SELECT phrase, author FROM public.phrases ORDER BY RAND() LIMIT 1"
+                sql = "SELECT phrase, author FROM public.phrases WHERE active = 1 ORDER BY RAND() LIMIT 1"
                 cur.execute(sql)
                 phrase = cur.fetchone()
                 return phrase
@@ -207,3 +232,5 @@ class DataBase:
             self.__init__()
             return self.w_add_pair(group, even_week, day_of_week, ordinal, lesson, teacher, pair_type, location)
 
+
+db = DataBase()

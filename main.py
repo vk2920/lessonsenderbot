@@ -14,7 +14,7 @@ from aiogram.utils.markdown import bold, italic, code, link
 import emoji
 
 import config
-import database
+from database import db
 from debugs import debug_log
 
 
@@ -27,14 +27,16 @@ class StartSetting(StatesGroup):  # Группа состояний для пе�
 
 class UserStates(StatesGroup):
     day_of_week = State()
+    settings = State()
 
 
 class AdminStates(StatesGroup):
     main = State()
 
 
-API_TOKEN = os.environ['BOT_TOKEN']
+API_TOKEN = os.environ['BOT_TOKEN_BAK']
 ADMINS = [470985286, 1943247578]
+DEBUG = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,19 +45,23 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 
-db = database.DataBase()
-
 std_keyboard = ReplyKeyboardMarkup()
 std_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
 std_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
 std_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
 std_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))
+std_keyboard.row(KeyboardButton("Настройки"))
 
 admin_keyboard = ReplyKeyboardMarkup()
 admin_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
 admin_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
 admin_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
-admin_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Админ"), KeyboardButton("Цитата"))
+admin_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))
+admin_keyboard.row(KeyboardButton("Настройки"), KeyboardButton("Админ"))
+
+settings_keyboard = ReplyKeyboardMarkup()
+settings_keyboard.row(KeyboardButton("Включить цитаты"), KeyboardButton("Выключить цитаты"))
+settings_keyboard.row(KeyboardButton("Выход"))
 
 day_keyboard = ReplyKeyboardMarkup()
 day_keyboard.row(KeyboardButton("ПН Нечёт"), KeyboardButton("ВТ Нечёт"), KeyboardButton("СР Нечёт"))
@@ -67,23 +73,54 @@ days_of_week = ["Воскресенье", "Понедельник", "Вторн�
 
 
 async def auto_phrase_sender():
+    """
+    Автоматическая отправка цитат зарегистрированному пользователю
+    :return: None
+    """
     while True:
-        chat_id = db.r_get_random_chat_id()
+        user = db.r_get_random_chat_id()
         try:
-            print(f"Получен ID чата: {chat_id}")
-            if chat_id != 0:
-                await bot.send_message(chat_id, get_random_phrase_to_msg(), parse_mode=types.ParseMode.MARKDOWN)
+            print(f"Получен ID чата: {user[0]} ({user[1]})")
+            if user[0] != 0 and user[1]:
+                await bot.send_message(int(user[0]), get_random_phrase_to_msg(), parse_mode=types.ParseMode.MARKDOWN)
         except Exception as _ex:
             print("Ошибка отправки запланированного сообщения", _ex)
-        await asyncio.sleep(3597)
+        await asyncio.sleep(14400)  # Каждые 4 часа
+
+
+# async def auto_pairs_sender():
+#     """
+#     Автоматическая отправка цитат зарегистрированному пользователю
+#     :return: None
+#     """
+#     while True:
+#         users = db.r_get_pairs_chat_ids()
+#         print(users)
+#         if DEBUG:
+#             await asyncio.sleep(20)
+#         else:
+#             await asyncio.sleep(86197)
 
 
 def get_random_phrase_to_msg():
+    """
+    Функция для получения случайной фразы
+    :return: Случайная фраза из БД
+    """
     phrase = db.r_get_random_phrase()
-    return f"*«{phrase[0]}»*\n© {phrase[1]}"
+    phrase = f"*«{phrase[0]}»*\n© {phrase[1]}"
+    return phrase
 
 
 def print_pairs(pairs: list, day_of_week: int, even_week: bool, with_id=False):
+    """
+    Функция для генерации читабельного списака пар
+    :param pairs: Список пар, полученный из БД
+    :param day_of_week: День недели (число от 1 до 6)
+    :param even_week: Чётность недели (True, если чётная, False в противном случае)
+    :param with_id: Сервисный аргумент. Включает указание ID записи в БД (для админов)
+    :return: Список пар в читабельном виде
+    """
     if len(pairs) == 0:
         return bold(days_of_week[day_of_week] +
                     (" чётной недели" if even_week else " нечётной недели") + ". На заводе не работаем") + "\n"
@@ -116,12 +153,22 @@ def print_pairs(pairs: list, day_of_week: int, even_week: bool, with_id=False):
 
 
 def get_pairs(message: types.Message):
+    """
+    Функция для получения списка пар на текущий и следующий день
+    :param message: Объект сообщения из ТГ
+    :return: Список пар для пользователя
+    """
     msg = get_today_by_id(message.from_user.id)
     msg += get_next_day_by_id(message.from_user.id)
     return msg
 
 
 def get_today(group: str):
+    """
+    Функция для получения списка пар на текущий день (в читабельном виде)
+    :param group: Название группы в нижнем регистре
+    :return: Список пар на текущий день
+    """
     even_week = int(datetime.date.today().strftime("%V")) % 2 == 0
     today = datetime.datetime.today().weekday() + 1
     msg = ""
@@ -132,6 +179,10 @@ def get_today(group: str):
 
 
 def get_today_by_id(user_id: int):
+    """
+    :param user_id: ID пользователя в ТГ
+    :return: Список пар на текущий день для конкретного пользователя
+    """
     even_week = int(datetime.date.today().strftime("%V")) % 2 == 0
     today = datetime.datetime.today().weekday()
     msg = ""
@@ -143,6 +194,11 @@ def get_today_by_id(user_id: int):
 
 
 def get_next_day(group: str):
+    """
+    Функция для получения списка пар на следующий день (в читабельном виде)
+    :param group: Название группы в нижнем регистре
+    :return: Список пар на следующий день
+    """
     even_week = int(datetime.date.today().strftime("%V")) % 2 == 0
     tomorrow = datetime.datetime.today().weekday() + 1
     msg = ""
@@ -158,6 +214,10 @@ def get_next_day(group: str):
 
 
 def get_next_day_by_id(user_id: int):
+    """
+    :param user_id: ID пользователя в ТГ
+    :return: Список пар на следующий день для конкретного пользователя
+    """
     even_week = int(datetime.date.today().strftime("%V")) % 2 == 0
     today = datetime.datetime.today().weekday()
     if today == 6:
@@ -180,6 +240,13 @@ def get_next_day_by_id(user_id: int):
 
 
 def get_week(group, even_week, with_id=False):
+    """
+    Функция для получаения списка пар на неделю в читабельном виде
+    :param group: Название группы в нижнем регистре
+    :param even_week: Чётность недели
+    :param with_id: Сервисный параметр для отображения ID записей в БД
+    :return: Список пар на неделю
+    """
     msg = ""
     for i in range(1, 7):
         msg += bold(days_of_week[i]) + "\n"
@@ -319,7 +386,7 @@ async def day_of_week_msg(message: types.Message, state: FSMContext):
     await state.finish()
 
 
-@dp.message_handler(state=AdminStates.main)
+@dp.message_handler(state=AdminStates.main)  # Обработка команд администратора
 async def admin_actions(message: types.Message, state: FSMContext):
     cmd = message.text.lower().split(" ")[0]
     if cmd == "выход":
@@ -390,6 +457,25 @@ async def admin_actions(message: types.Message, state: FSMContext):
         return 0
 
 
+@dp.message_handler(state=UserStates.settings)
+async def user_settings(message: types.Message, state: FSMContext):
+    if message.text.lower() == "выход":
+        await message.answer("Возвращаемся в главное меню)",
+                             reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard))
+        await state.finish()
+        return 0
+
+    cmd = message.text.lower()
+    if cmd == "включить цитаты":
+        db.w_user_update_phrases(message.from_user.id, True)
+        await message.answer("Настройки обновлены, теперь я стану присылать тебе прикольные (и странные)"
+                             " цитатки с рандомной периодичностью")
+    elif cmd == "выключить цитаты":
+        db.w_user_update_phrases(message.from_user.id, False)
+        await message.answer("Настройки обновлены, теперь я не буду присылать тебе цитаты автоматически")
+    return 0
+
+
 @dp.message_handler()  # Реакция бота на сообщение для выполнения определённой команды
 async def command_execute(message: types.Message):
     debug_log(message, "Вызов функции выполнения команды для зарегистрированного пользователя")
@@ -452,6 +538,10 @@ async def command_execute(message: types.Message):
             await message.answer(get_random_phrase_to_msg(),
                                  reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard),
                                  parse_mode=types.ParseMode.MARKDOWN)
+        elif cmd == "настройки":
+            await message.answer("Сейчас зайдём в настройки)", reply_markup=settings_keyboard)
+            await UserStates.settings.set()
+            return 0
         else:
             await message.reply("Ну и чё ты написал?\nЧто я должен сделать?\n"
                                 "Ладно, я притворюсь, что этого не было")
@@ -467,6 +557,7 @@ async def command_execute(message: types.Message):
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.create_task(auto_phrase_sender())
+    loop.create_task(auto_pairs_sender())
+    # loop.create_task(auto_phrase_sender())
 
     executor.start_polling(dp, skip_updates=True)
