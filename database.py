@@ -92,7 +92,9 @@ class DataBase:
                 users = list(cur.fetchall())
                 user_ids = list()
                 for user in users:
-                    user_ids.append(user[0])
+                    if not (user[0] is None):
+                        user_ids.append(user[0])
+                print("Список пользователей для отправки объявления: " + str(user_ids))
                 return user_ids
         except pymysql.err.OperationalError as _ex:
             logging.error("Ошибка подключения, переподключение...")
