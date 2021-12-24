@@ -84,6 +84,22 @@ class DataBase:
             self.__init__()
             return self.r_get_random_chat_id()
 
+    def r_get_all_users(self):
+        try:
+            with self._connection.cursor() as cur:
+                sql = "SELECT chat_id FROM public.users;"
+                cur.execute(sql)
+                users = list(cur.fetchall())
+                user_ids = list()
+                for user in users:
+                    user_ids.append(user[0])
+                return user_ids
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.r_get_all_users()
+
     def r_get_pairs_chat_ids(self):
         try:
             with self._connection.cursor() as cur:

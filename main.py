@@ -32,6 +32,7 @@ class UserStates(StatesGroup):
 
 class AdminStates(StatesGroup):
     main = State()
+    announcement = State()
 
 
 API_TOKEN = os.environ['BOT_TOKEN']
@@ -451,6 +452,15 @@ async def admin_actions(message: types.Message, state: FSMContext):
         await message.answer(f"Ууупс... А в БД нет нужной пары", parse_mode=types.ParseMode.MARKDOWN,
                              reply_markup=ReplyKeyboardRemove())
         return 0
+    elif cmd == "объявление":
+        msg = message.text[11::]
+        users = db.r_get_all_users()
+        user_list = "*Сообщение было отправлено следующим пользователям:*"
+        for user in users:
+            if user not in ADMINS:
+                await bot.send_message(user, "*Сообщение от администратора:*\n" + msg, parse_mode=types.ParseMode.MARKDOWN)
+                user_list += "\n" + str(user)
+        await message.answer(user_list, parse_mode=types.ParseMode.MARKDOWN)
     else:
         await message.answer("Что-то пошло не по плану, у меня нет команды *" + message.text.split(" ")[0] + "*")
         await message.answer("Возможно, ты просто забыл выйти из панели управления")
