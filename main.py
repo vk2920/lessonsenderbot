@@ -34,7 +34,7 @@ class AdminStates(StatesGroup):
     main = State()
 
 
-API_TOKEN = os.environ['BOT_TOKEN_BAK']
+API_TOKEN = os.environ['BOT_TOKEN']
 ADMINS = [470985286, 1943247578]
 DEBUG = False
 
