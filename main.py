@@ -458,8 +458,11 @@ async def admin_actions(message: types.Message, state: FSMContext):
         user_list = "*Сообщение было отправлено следующим пользователям:*"
         for user in users:
             if user not in ADMINS:
-                await bot.send_message(user, "*Сообщение от администратора:*\n" + msg, parse_mode=types.ParseMode.MARKDOWN)
-                user_list += "\n" + str(user)
+                try:
+                    await bot.send_message(user, "*Сообщение от администратора:*\n" + msg, parse_mode=types.ParseMode.MARKDOWN)
+                    user_list += "\n" + str(user)
+                except:
+                    pass
         await message.answer(user_list, parse_mode=types.ParseMode.MARKDOWN)
     else:
         await message.answer("Что-то пошло не по плану, у меня нет команды *" + message.text.split(" ")[0] + "*")
