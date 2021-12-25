@@ -156,6 +156,24 @@ class DataBase:
             self.__init__()
             return self.w_set_chat_id(user_id, chat_id)
 
+    def w_user_update_phrases(self, user_id: int, phrases: bool):
+        """
+        :param user_id: ID пользователя в ТГ
+        :param phrases: Параметр активации авторассылки цитат
+        :return: True, если запись произведена успешно, иначе False
+        """
+        try:
+            with self._connection.cursor() as cur:
+                sql = f"UPDATE public.users SET phrases = {str(int(phrases))} WHERE tg_id = {user_id}"
+                cur.execute(sql)
+            self._connection.commit()
+            return True
+        except pymysql.err.OperationalError as _ex:
+            logging.error("Ошибка подключения, переподключение...")
+            # Реинициализация объекта для переподключения к БД
+            self.__init__()
+            return self.w_set_chat_id(user_id, chat_id)
+
     def w_register_user_by_id(self, tg_id: int, name: str, group: str):
         """
         :param tg_id: id пользователя в ТГ (int)

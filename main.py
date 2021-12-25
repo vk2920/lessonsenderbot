@@ -35,7 +35,7 @@ class AdminStates(StatesGroup):
     announcement = State()
 
 
-API_TOKEN = os.environ['BOT_TOKEN']
+API_TOKEN = os.environ['BOT_TOKEN_BAK']
 ADMINS = [470985286, 1943247578]
 DEBUG = False
 
@@ -46,29 +46,29 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 
-std_keyboard = ReplyKeyboardMarkup()
-std_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
-std_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
-std_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
-std_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))
-std_keyboard.row(KeyboardButton("Настройки"))
+std_keyboard = ReplyKeyboardMarkup()\
+    .row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))\
+    .row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))\
+    .row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))\
+    .row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))\
+    .row(KeyboardButton("Настройки"))
 
-admin_keyboard = ReplyKeyboardMarkup()
-admin_keyboard.row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))
-admin_keyboard.row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))
-admin_keyboard.row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))
-admin_keyboard.row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))
-admin_keyboard.row(KeyboardButton("Настройки"), KeyboardButton("Админ"))
+admin_keyboard = ReplyKeyboardMarkup()\
+    .row(KeyboardButton("Конкретный день"), KeyboardButton("Пары"))\
+    .row(KeyboardButton("Сегодня"), KeyboardButton("Завтра"))\
+    .row(KeyboardButton("Чёт"), KeyboardButton("Всё"), KeyboardButton("Нечёт"))\
+    .row(KeyboardButton("Сменить группу"), KeyboardButton("Цитата"))\
+    .row(KeyboardButton("Настройки"), KeyboardButton("Админ"))
 
-settings_keyboard = ReplyKeyboardMarkup()
-settings_keyboard.row(KeyboardButton("Включить цитаты"), KeyboardButton("Выключить цитаты"))
-settings_keyboard.row(KeyboardButton("Выход"))
+settings_keyboard = ReplyKeyboardMarkup()\
+    .row(KeyboardButton("Включить цитаты"), KeyboardButton("Выключить цитаты"))\
+    .row(KeyboardButton("Выход"))
 
-day_keyboard = ReplyKeyboardMarkup()
-day_keyboard.row(KeyboardButton("ПН Нечёт"), KeyboardButton("ВТ Нечёт"), KeyboardButton("СР Нечёт"))
-day_keyboard.row(KeyboardButton("ЧТ Нечёт"), KeyboardButton("ПТ Нечёт"), KeyboardButton("СБ Нечёт"))
-day_keyboard.row(KeyboardButton("ПН Чёт"), KeyboardButton("ВТ Чёт"), KeyboardButton("СР Чёт"))
-day_keyboard.row(KeyboardButton("ЧТ Чёт"), KeyboardButton("ПТ Чёт"), KeyboardButton("СБ Чёт"))
+day_keyboard = ReplyKeyboardMarkup()\
+    .row(KeyboardButton("ПН Нечёт"), KeyboardButton("ВТ Нечёт"), KeyboardButton("СР Нечёт"))\
+    .row(KeyboardButton("ЧТ Нечёт"), KeyboardButton("ПТ Нечёт"), KeyboardButton("СБ Нечёт"))\
+    .row(KeyboardButton("ПН Чёт"), KeyboardButton("ВТ Чёт"), KeyboardButton("СР Чёт"))\
+    .row(KeyboardButton("ЧТ Чёт"), KeyboardButton("ПТ Чёт"), KeyboardButton("СБ Чёт"))
 
 days_of_week = ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 
@@ -459,7 +459,8 @@ async def admin_actions(message: types.Message, state: FSMContext):
         for user in users:
             if user not in ADMINS:
                 try:
-                    await bot.send_message(user, "*Сообщение от администратора:*\n" + msg, parse_mode=types.ParseMode.MARKDOWN)
+                    await bot.send_message(user, "*Сообщение от администратора:*\n" + msg,
+                                           parse_mode=types.ParseMode.MARKDOWN)
                     user_list += "\n" + str(user)
                 except:
                     pass
@@ -472,13 +473,15 @@ async def admin_actions(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=UserStates.settings)
 async def user_settings(message: types.Message, state: FSMContext):
-    if message.text.lower() == "выход":
+    cmd = message.text.lower()
+    if cmd == "выход":
         await message.answer("Возвращаемся в главное меню)",
                              reply_markup=(admin_keyboard if message.from_user.id in ADMINS else std_keyboard))
         await state.finish()
         return 0
 
-    cmd = message.text.lower()
+    print("Обновление настроек")
+    print(f"Команда {cmd}")
     if cmd == "включить цитаты":
         db.w_user_update_phrases(message.from_user.id, True)
         await message.answer("Настройки обновлены, теперь я стану присылать тебе прикольные (и странные)"
