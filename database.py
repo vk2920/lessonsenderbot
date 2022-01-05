@@ -4,6 +4,8 @@ import sys
 
 import pymysql
 
+from config import PARAMS
+
 
 class DataBase:
     def __init__(self):
@@ -20,71 +22,135 @@ class DataBase:
             logging.error(" Ошибка подключения к БД, возможные причины чуть ниже")
             logging.error("     1. Траблы с подключением")
             logging.error("     2. Траблы с данными в переменных окружения (или их нет)")
-            logging.error(f" Хост: {os.environ['DB_HOST']},\n User: {os.environ['DB_USER']},\n Password: "
-                          f"{os.environ['DB_PASSWD']},\n DB: {os.environ['DB_NAME']}")
+            logging.error(f"\n Хост: {os.environ['DB_HOST']}\n User: {os.environ['DB_USER']}\n Password: "
+                          f"{os.environ['DB_PASSWD']}\n DB: {os.environ['DB_NAME']}")
             logging.error(" А вот и содержимое исключения:")
             logging.error(_ex)
             sys.exit()
 
-    def r_get_pairs_by_group(self, day_of_week: int, even_week: bool, group: str):
+    def r_get_pairs_by_group(self, day_of_week: int, even_week: bool, group: int, errs: int = 0):
         """
         :param day_of_week: порядковый номер дня недели (int, 1~6)
         :param even_week: True, если неделя чётная, иначе False
-        :param group: группа в формате "ИС/б-21-3-о", где
-             -- ИС — направление подготовки
-             -- б — бакалавриат (м — магистратура)
-             -- 21 — год зачисления на первый курс
-             -- 3 — номер потока
-             -- о — очная форма обучения (з — заочная)
-        :return: список пар на запрошенный день
+        :param group: порядковый номер группы в БД
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: список пар на запрошенный день, или False в случае ошибки
         """
         try:
             pairs_list = []
             with self._connection.cursor() as cur:
                 sql = f"SELECT * FROM public.pairs WHERE " + \
-                      f"group_name = '{group}' AND even_week = {even_week} AND " + \
+                      f"group_id = {group} AND even_week = {even_week} AND " + \
                       f"day_of_week = {day_of_week} ORDER BY ordinal"
                 cur.execute(sql)
                 for row in cur.fetchall():
                     pairs_list.append(row)
             return pairs_list
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.r_get_pairs_by_group(day_of_week, even_week, group)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_pairs_by_group(day_of_week, even_week, group, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def r_get_user_group(self, tg_id: int):
+    def r_get_user_group(self, tg_id: int, errs: int = 0) -> int:
+        """
+        Функция для получения номера группы, которой принадлежит пользователь
+        :param tg_id: ID пользователя в ТГ
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: Порядковый номер группы, которой принадлежит пользователь или False в случае ошибки
+        """
         try:
             with self._connection.cursor() as cur:
-                cur.execute(f"""SELECT group_name FROM public.users WHERE tg_id = {tg_id} LIMIT 1""")
-                group = list(cur.fetchone())[0]
+                cur.execute(f"SELECT group_id FROM public.users WHERE id = {tg_id} LIMIT 1;")
+                group = int(list(cur.fetchone())[0])
                 return group
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.r_get_user_group(tg_id)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_user_group(tg_id, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def r_get_random_chat_id(self):
+    def r_get_user_setting(self, param: str, tg_id: int, errs: int = 0) -> bool:
+        """
+        Получает информацию о конкретной настройке пользователя
+        :param param: Номер параметра (константа из конфиг-файла)
+        :param tg_id: ID пользователя в ТГ
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: Значение параметра (True / False) или False в случае ошибки
+        """
+        try:
+            if param == PARAMS['auto_phrases']:
+                sql = f"SELECT setting_auto_phrases FROM public.users WHERE id = {tg_id} LIMIT 1;"
+
+            elif param == PARAMS['auto_pairs']:
+                sql = f"SELECT setting_auto_pairs FROM public.users WHERE id = {tg_id} LIMIT 1;"
+
+            elif param == PARAMS['show_id']:
+                sql = f"SELECT setting_show_pairs_ids FROM public.users WHERE id = {tg_id} LIMIT 1;"
+
+            elif param == PARAMS['reminders']:
+                sql = f"SELECT setting_tests_reminders FROM public.users WHERE id = {tg_id} LIMIT 1;"
+
+            else:
+                return False
+
+            with self._connection.cursor() as cur:
+                cur.execute(sql)
+                return bool(cur.fetchone()[0])
+        except pymysql.err.OperationalError as _ex:
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return bool(self.r_get_user_setting(param, tg_id, errs=errs+1))
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
+
+    def r_get_random_chat_id(self, errs: int = 0) -> int:
+        """
+        Достаёт из БД случайный ID пользователя в ТГ (ID чата ЛС с этим пользователем)
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: ID пользователя в ТГ
+        """
         try:
             with self._connection.cursor() as cur:
-                sql = "SELECT chat_id, phrases FROM public.users ORDER BY RAND() LIMIT 1"
+                sql = "SELECT id FROM public.users ORDER BY RAND() LIMIT 1"
                 cur.execute(sql)
-                user = list(cur.fetchone())
-                if user[0] is not None and user[0] != "" and user[0] != 0:
-                    user[0] = int(user[0])
-                    user[1] = int(user[1])
+                user = cur.fetchone()[0]
+                if user is not None and user != "" and user != 0:
                     return user
                 else:
                     return 0
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.r_get_random_chat_id()
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_random_chat_id(errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def r_get_all_users(self):
+    def r_get_all_users(self, errs: int = 0):
+        """
+        Достаёт из БД ID всех пользователей в ТГ
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: список из ID пользователей в ТГ
+        """
         try:
             with self._connection.cursor() as cur:
                 sql = "SELECT chat_id FROM public.users;"
@@ -97,109 +163,150 @@ class DataBase:
                 print("Список пользователей для отправки объявления: " + str(user_ids))
                 return user_ids
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.r_get_all_users()
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_all_users(errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def r_get_pairs_chat_ids(self):
+    def r_get_random_phrase(self, errs: int = 0):
+        """
+        Достаёт из БД случайную цитату
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: цитата (цитата, автор)
+        """
         try:
             with self._connection.cursor() as cur:
-                sql = "SELECT chat_id, group_name FROM public.users WHERE pairs = 1"
-                cur.execute(sql)
-                user_list = list(cur.fetchall())
-                users_dict = dict()
-                for user in user_list:
-                    if user[0] is not None and user[0] != "" and user[0] != 0:
-                        user[0] = int(user[0])
-                        if user[1] is not None and user[1] != "":
-                            if users_dict.get(user[1], "no") == "no":
-                                users_dict[user[1]] = list()
-                            users_dict[user[1]].append(user[0])
-
-                return users_dict
-
-        except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.r_get_pairs_chat_ids()
-
-    def r_get_random_phrase(self):
-        try:
-            with self._connection.cursor() as cur:
-                sql = "SELECT phrase, author FROM public.phrases WHERE active = 1 ORDER BY RAND() LIMIT 1"
+                sql = "SELECT phrase, author FROM public.phrases WHERE active = 1 ORDER BY RAND() LIMIT 1;"
                 cur.execute(sql)
                 phrase = cur.fetchone()
                 return phrase
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.r_get_random_phrase()
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_random_phrase(errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def w_set_chat_id(self, user_id: int, chat_id: int):
+    def r_get_institute_list(self, errs: int = 0):
         """
-        :param user_id: ID пользователя в ТГ
-        :param chat_id: ID чата с данным пользователем
-        :return: True, если запись произведена успешно, иначе False
+        Достаёт из БД список доступных институтов (по таблице групп)
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: список строк с названиями институтов
         """
         try:
             with self._connection.cursor() as cur:
-                sql = f"UPDATE public.users SET chat_id = {chat_id} WHERE tg_id = {user_id}"
+                sql = "SELECT DISTINCT institute FROM public.groups;"
                 cur.execute(sql)
-            self._connection.commit()
-            return True
+                institutes = cur.fetchall()
+                institute_list = list()
+                for institute in institutes:
+                    institute_list.append(institute[0])
+                return institute_list
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_set_chat_id(user_id, chat_id)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_institute_list(errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def w_user_update_phrases(self, user_id: int, phrases: bool):
+    def r_get_group_list(self, institute: str, course: int, errs: int = 0):
         """
-        :param user_id: ID пользователя в ТГ
-        :param phrases: Параметр активации авторассылки цитат
-        :return: True, если запись произведена успешно, иначе False
+        Достаёт из БД список групп выбранного института на выбранном курсе
+        :param institute: Название института
+        :param course: Порядковый номер курса
+        :param errs: Количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: Список строк (наименования групп)
         """
         try:
             with self._connection.cursor() as cur:
-                sql = f"UPDATE public.users SET phrases = {str(int(phrases))} WHERE tg_id = {user_id}"
+                sql = f"SELECT DISTINCT group_name FROM public.groups "\
+                      f"WHERE institute = '{institute}' AND course = {course};"
                 cur.execute(sql)
-            self._connection.commit()
-            return True
+                groups = cur.fetchall()
+                group_list = list()
+                for group in groups:
+                    group_list.append(group[0])
+                return group_list
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_set_chat_id(user_id, chat_id)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_group_list(institute, course, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def w_register_user_by_id(self, tg_id: int, name: str, group: str):
+    def r_get_group_id(self, group_name: str, errs: int = 0) -> int:
+        """
+        Получает из БД порядковый номер группы по названию
+        :param group_name: Название группы
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
+        :return: Порядковый номер группы
+        """
+        try:
+            with self._connection.cursor() as cur:
+                sql = f"SELECT id FROM public.groups WHERE group_name = '{group_name}';"
+                cur.execute(sql)
+                return cur.fetchone()[0]
+        except pymysql.err.OperationalError as _ex:
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.r_get_group_id(group_name, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
+
+    def w_register_user_by_id(self, tg_id: int, name: str, group: str, errs: int = 0):
         """
         :param tg_id: id пользователя в ТГ (int)
         :param name: ФИО пользователя
         :param group: группа пользователя в формате
+        :param errs: количество ошибок (применяется для ограничения рекурсивного
+            выполнения при проблемах с подключением)
         :return: True, если запись произведена успешно, иначе False
         """
         try:
             with self._connection.cursor() as cur:
-                sql = f"SELECT tg_id FROM public.users WHERE tg_id = {tg_id}"
+                sql = f"SELECT tg_id FROM public.users WHERE id = {tg_id}"
                 cur.execute(sql)
                 if len(list(cur.fetchall())) != 0:
-                    sql = f"UPDATE public.users SET group_name = '{group}' WHERE tg_id = {tg_id}"
+                    sql = f"UPDATE public.users SET group_name = '{group}' WHERE id = {tg_id}"
                 else:
-                    sql = f"INSERT INTO public.users (tg_id, name, group_name) VALUES ({tg_id}, '{name}', '{group}');"
+                    group = self.r_get_group_id(group_name=group)
+                    sql = f"INSERT INTO public.users (id, name, group_id) VALUES "\
+                          f"({tg_id}, '{name}', {group});"
                 cur.execute(sql)
                 self._connection.commit()
             return True
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_register_user_by_id(tg_id, name, group)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_register_user_by_id(tg_id, name, group, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    # Административные метода класса DataBase
-    def w_remove_pair_by_pair_id(self, pair_id: int):
+    # Административные методы класса DataBase
+    def w_remove_pair_by_pair_id(self, pair_id: int, errs: int = 0):
         try:
             with self._connection.cursor() as cur:
                 sql = f"DELETE FROM public.pairs WHERE id = {pair_id}"
@@ -207,12 +314,16 @@ class DataBase:
                 self._connection.commit()
                 return True
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_remove_pair_by_pair_id(pair_id)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_remove_pair_by_pair_id(pair_id, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def r_get_pair_by_pair_id(self, pair_id: int):
+    def r_get_pair_by_pair_id(self, pair_id: int, errs: int = 0):
         try:
             with self._connection.cursor() as cur:
                 sql = f"SELECT * FROM public.pairs WHERE id = {pair_id}"
@@ -220,12 +331,16 @@ class DataBase:
                 self._connection.commit()
                 return cur.fetchone()
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_remove_pair_by_pair_id(pair_id)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_remove_pair_by_pair_id(pair_id, errs=erss+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def w_move_pair_by_pair_id(self, pair_id: int, day_of_week: int, ordinal: int):
+    def w_move_pair_by_pair_id(self, pair_id: int, day_of_week: int, ordinal: int, errs: int = 0):
         try:
             with self._connection.cursor() as cur:
                 sql = f"UPDATE public.pairs SET day_of_week = {day_of_week}, ordinal = {ordinal} WHERE id = {pair_id}"
@@ -233,12 +348,16 @@ class DataBase:
                 self._connection.commit()
                 return True
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_move_pair_by_pair_id(pair_id, day_of_week, ordinal)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_move_pair_by_pair_id(pair_id, day_of_week, ordinal, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
-    def w_change_pair_location_by_pair_id(self, pair_id: int, location: str):
+    def w_change_pair_location_by_pair_id(self, pair_id: int, location: str, errs: int = 0):
         try:
             with self._connection.cursor() as cur:
                 sql = f"UPDATE public.pairs SET location = {location} WHERE id = {pair_id};"
@@ -246,13 +365,17 @@ class DataBase:
                 self._connection.commit()
                 return True
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_change_pair_location_by_pair_id(pair_id, location)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_change_pair_location_by_pair_id(pair_id, location, errs=errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
     def w_add_pair(self, group: str, even_week: bool, day_of_week: int, ordinal: int, lesson: str, teacher: str,
-                   pair_type: str, location: str):
+                   pair_type: str, location: str, errs: int = 0):
         try:
             with self._connection.cursor() as cur:
                 sql = f"INSERT INTO public.pairs (group, even_week, day_of_week, ordinal, lesson, teacher, type, " \
@@ -263,10 +386,64 @@ class DataBase:
                 cur.execute("SELECT id FROM public.pairs ORDER BY id DESK LIMIT 1;")
                 return True
         except pymysql.err.OperationalError as _ex:
-            logging.error("Ошибка подключения, переподключение...")
-            # Реинициализация объекта для переподключения к БД
-            self.__init__()
-            return self.w_add_pair(group, even_week, day_of_week, ordinal, lesson, teacher, pair_type, location)
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_add_pair(group, even_week, day_of_week, ordinal, lesson, teacher, pair_type,
+                                       location, errs+1)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
+
+    def w_recreate_db(self):
+        try:
+            with self._connection.cursor() as cur:
+                with open('database.sql', 'r') as f:
+                    sql = f.read()
+                cur.execute(sql)
+                return True
+        except pymysql.err.OperationalError as _ex:
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_recreate_db()
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
+
+    def w_execute_current_sql(self):
+        try:
+            with self._connection.cursor() as cur:
+                with open('execute.sql', 'r') as f:
+                    sql = f.read()
+                cur.execute(sql)
+                return True
+        except pymysql.err.OperationalError as _ex:
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.w_execute_current_sql()
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
+
+    def rw_execute(self, sql: str):
+        try:
+            with self._connection.cursor() as cur:
+                cur.execute(sql)
+                return True
+        except pymysql.err.OperationalError as _ex:
+            if errs <= 3:
+                logging.error("Ошибка подключения, переподключение...")
+                # Реинициализация объекта для переподключения к БД
+                self.__init__()
+                return self.rw_execute(sql)
+            else:
+                logging.error("Ошибка работы с БД. Выход из метода")
+                return False
 
 
 db = DataBase()
