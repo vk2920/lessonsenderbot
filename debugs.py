@@ -15,6 +15,7 @@ def debug_log(message: Message, debug_message: str = "Дополнительно
 
 class Logger:
     def __init__(self, file_name: str = f"lessonsenderbot-{datetime.date.today().isoformat()}.log"):
+        self._file_name = file_name
         self._log_file = open(file_name, 'a')
         self._log_file.write("\n\n" + ("-"*80) + f"\nLog started at "
                              f"{datetime.datetime.now().replace(microsecond=0).isoformat().replace('T', ' ')}\n\n")
@@ -25,3 +26,11 @@ class Logger:
     def log(self, message: Message, _ex, debug_message: str = "Дополнительное сообщение не указано"):
         self._log_file.write(f"{message.from_user.first_name} ({message.from_user.id}) написал \""
                              f"{message.text}\" в чат {message.chat.id}\n{debug_message}\n{_ex}\n\n")
+
+    def get_logs(self, lines: int = 200):
+        self._log_file.close()
+        self._log_file = open(self._file_name, 'r')
+        logs = self._log_file.read().split("\n")[-lines:]
+        self._log_file.close()
+        self._log_file = open(self._file_name, 'a')
+        return logs
