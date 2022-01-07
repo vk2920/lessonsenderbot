@@ -30,7 +30,7 @@ class Logger:
     def get_logs(self, lines: int = 200):
         self._log_file.close()
         self._log_file = open(self._file_name, 'r')
-        logs = self._log_file.read().split("\n")[-lines:]
+        logs = "\n".join(self._log_file.read().split("\n")[-lines:])
         self._log_file.close()
         self._log_file = open(self._file_name, 'a')
         return logs
