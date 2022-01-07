@@ -109,9 +109,13 @@ def get_pairs_today(user_id: int):
     msg = ""
     if today != 7:  # Если сегодня не воскресенье
         group = db.r_get_user_group(tg_id=user_id)
-        pairs = db.r_get_pairs_by_group(day_of_week=today, even_week=even_week, group=group)
-        msg += print_pairs(pairs, today, even_week,
-                           with_id=db.r_get_user_setting(PARAMS['show_id'], user_id))
+        if group:
+            pairs = db.r_get_pairs_by_group(day_of_week=today, even_week=even_week, group=group)
+            msg += print_pairs(pairs, today, even_week,
+                               with_id=db.r_get_user_setting(PARAMS['show_id'], user_id))
+        else:
+            msg += "*Не удалось получить информацию о группе*\n" \
+                   "Попробуйте исправить это при помощи кнопки \"Сменить группу\""
     return msg
 
 
@@ -126,9 +130,13 @@ def get_pairs_tomorrow(user_id: int):
     msg = ""
     if today != 6:  # Если сегодня не суббота
         group = db.r_get_user_group(tg_id=user_id)
-        pairs = db.r_get_pairs_by_group(day_of_week=today+1, even_week=even_week, group=group)
-        msg += print_pairs(pairs, today+1, even_week,
-                           with_id=db.r_get_user_setting(PARAMS['show_id'], user_id))
+        if group:
+            pairs = db.r_get_pairs_by_group(day_of_week=today+1, even_week=even_week, group=group)
+            msg += print_pairs(pairs, today+1, even_week,
+                               with_id=db.r_get_user_setting(PARAMS['show_id'], user_id))
+        else:
+            msg += "*Не удалось получить информацию о группе*\n" \
+                   "Попробуйте исправить это при помощи кнопки \"Сменить группу\""
     return msg
 
 
@@ -143,9 +151,13 @@ def get_pairs(user_id: int, day_of_week: int, even_week: bool):
     msg = ""
     if day_of_week != 7:  # Если сегодня не воскресенье
         group = db.r_get_user_group(tg_id=user_id)
-        pairs = db.r_get_pairs_by_group(day_of_week=day_of_week, even_week=even_week, group=group)
-        msg += print_pairs(pairs, day_of_week, even_week,
-                           with_id=db.r_get_user_setting(PARAMS['show_id'], user_id))
+        if group:
+            pairs = db.r_get_pairs_by_group(day_of_week=day_of_week, even_week=even_week, group=group)
+            msg += print_pairs(pairs, day_of_week, even_week,
+                               with_id=db.r_get_user_setting(PARAMS['show_id'], user_id))
+        else:
+            msg += "*Не удалось получить информацию о группе*\n" \
+                   "Попробуйте исправить это при помощи кнопки \"Сменить группу\""
     return msg
 
 
@@ -473,26 +485,31 @@ async def execute_command(message: Message):
         await message.answer(SETTINGS_DESCRIPTIONS_MSG, parse_mode=ParseMode.MARKDOWN,
                              reply_markup=rkm_settings)
 
+    elif message.from_user.id in ADMINS:
+        cmd = cmd.split(" ")
+        if cmd[0] == "get_logs" and len(cmd) == 1:
+            await message.answer(logger.get_logs(200))
+        elif cmd[0] == "get_logs" and len(cmd) == 2 and cmd[1].isnumeric():
+            await message.answer(logger.get_logs(int(cmd[1])))
+        elif cmd[0] == "send" and len(cmd) >= 3 and cmd[1].isnumeric():
+            try:
+                await bot.send_message(int(cmd[1]), " ".join(cmd[2::]))
+                await message.answer("Сообщение отправлено")
+            except Exception as _ex:
+                debug_save_error(message, _ex)
+                await message.answer(f"Ошибка отправки сообщения\n\n```{_ex}```")
+        elif cmd[0] == "send" and len(cmd) >= 3 and cmd[1] == "*":
+            for user_id in db.r_get_all_users():
+                try:
+                    await bot.send_message(user_id, " ".join(cmd[2::]))
+                    await message.answer(f"Сообщение пользователю {user_id} отправлено")
+                except Exception as _ex:
+                    debug_save_error(message, _ex)
+                    await message.answer(f"Ошибка отправки сообщения пользователю {user_id}\n\n```{_ex}```")
+            await message.answer("Действие выполнено, сообщения об ошибках выше")
+
     else:
-        if message.from_user.id in ADMINS and len(cmd.split("\n")) == 2:
-            passwd = cmd.split("\n")[1]
-            if cmd.split("\n")[0].split(" ")[0] == "admin" and cmd.split("\n")[0].split(" ")[1] == "=>":
-                cmd = cmd.split("\n")[0].split(" ")[2]
-            else:
-                await message.answer("Ошибка в команде...\nАдминистратор использует \"admin => <command>\"")
-                return 0
-
-            if hashlib.sha512(passwd).hexdigest() == ADMIN_PASSWD:
-                await message.answer("Пароль верный, выполняю действие")
-                if cmd == "recreate_db":
-                    # Пересоздание БД
-                    await message.answer("Увы, но эта функция слишком небезопасна\n"
-                                         "Убедитесь, что сохранили дамп БД и пересоздайте БД вручную")
-                elif cmd == "get_logs":
-                    await message.answer(logger.get_logs(lines=200))
-
-        else:
-            await message.reply("Я не понимаю эту команду...", reply_markup=rkm_std)
+        await message.reply("Я не понимаю эту команду...", reply_markup=rkm_std)
 
 
 if __name__ == "__main__":
