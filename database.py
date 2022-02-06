@@ -288,9 +288,9 @@ class DataBase:
                 sql = f"SELECT id FROM public.users WHERE id = {tg_id}"
                 cur.execute(sql)
                 if len(list(cur.fetchall())) != 0:
-                    sql = f"UPDATE public.users SET group_id = {group_id}, name = '{name}' WHERE id = {tg_id}"
+                    sql = f"UPDATE public.users SET group_id = {group_id}, user_name = '{name}' WHERE id = {tg_id}"
                 else:
-                    sql = f"INSERT INTO public.users (id, name, group_id) VALUES ({tg_id}, '{name}', {group_id});"
+                    sql = f"INSERT INTO public.users (id, user_name, group_id) VALUES ({tg_id}, '{name}', {group_id});"
                 cur.execute(sql)
                 self._connection.commit()
             return True
