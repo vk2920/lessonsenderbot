@@ -51,6 +51,9 @@ def print_pairs(pairs: list, day_of_week: int, even_week: bool, with_id=False):
     :return: Список пар в читабельном виде
     """
 
+    # Исправление для невозможности выйти за пределы массива в конфиге
+    day_of_week = day_of_week % 7
+
     # Если нет пар, вернём сообщение об отсутствии пар
     if len(pairs) == 0:
         return f"*{DAYS_OF_WEEK_FULL_UPPER[day_of_week]} {('' if even_week else 'не')}чётной недели." \
