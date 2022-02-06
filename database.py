@@ -299,7 +299,7 @@ class DataBase:
                 logging.error("Ошибка подключения, переподключение...")
                 # Реинициализация объекта для переподключения к БД
                 self.__init__()
-                return self.w_register_user_by_id(tg_id, name, group, errs=errs+1)
+                return self.w_register_user_by_id(tg_id, name, group_id, errs=errs+1)
             else:
                 logging.error("Ошибка работы с БД. Выход из метода")
                 return False
