@@ -305,12 +305,13 @@ async def start_setting_select_group(message: Message, state: FSMContext):
         if group_id != 0:
             await message.answer("Я получил твою группу, сейчас сохраню и настройка будет завершена",
                                  reply_markup=ReplyKeyboardRemove())
-            db.w_register_user_by_id(message.from_user.id, message.from_user.first_name, group_id)
-
-            # Сбросим состояние в нормальное
-            await state.finish()
-            await message.answer("Группа сохранена)\nПриятного пользования",
-                                 reply_markup=rkm_std)
+            if db.w_register_user_by_id(message.from_user.id, message.from_user.first_name, group_id):
+                # Сбросим состояние в нормальное
+                await state.finish()
+                await message.answer("Группа сохранена)\nПриятного пользования",
+                                     reply_markup=rkm_std)
+            else:
+                await message.answer("Ошибка сохранения, исключение `pymysql.err.OperationalError`")
         else:  # Если такой группы нет (или пользователь ввёл что-то неладное)
             await message.reply("Последний этап остался...\nВыбери свою группу на клавиатуре")
     except Exception as _ex:

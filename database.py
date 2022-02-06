@@ -295,6 +295,7 @@ class DataBase:
                 self._connection.commit()
             return True
         except pymysql.err.OperationalError as _ex:
+            logging.error(_ex.with_traceback(None))
             if errs <= 3:
                 logging.error("Ошибка подключения, переподключение...")
                 # Реинициализация объекта для переподключения к БД
