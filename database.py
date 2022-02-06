@@ -40,9 +40,8 @@ class DataBase:
         try:
             pairs_list = []
             with self._connection.cursor() as cur:
-                sql = f"SELECT * FROM public.pairs WHERE " + \
-                      f"group_id = {group} AND even_week = {even_week} AND " + \
-                      f"day_of_week = {day_of_week} ORDER BY ordinal"
+                sql = f"SELECT * FROM public.pairs WHERE group_id = {group} AND even_week = {even_week} " \
+                      f"AND day_of_week = {day_of_week} ORDER BY ordinal"
                 cur.execute(sql)
                 for row in cur.fetchall():
                     pairs_list.append(row)
@@ -80,7 +79,7 @@ class DataBase:
                 logging.error("Ошибка работы с БД. Выход из метода")
                 return False
 
-    def r_get_user_setting(self, param: str, tg_id: int, errs: int = 0) -> bool:
+    def r_get_user_setting(self, param: int, tg_id: int, errs: int = 0) -> bool:
         """
         Получает информацию о конкретной настройке пользователя
         :param param: Номер параметра (константа из конфиг-файла)
@@ -233,8 +232,8 @@ class DataBase:
         try:
             with self._connection.cursor() as cur:
                 sql = f"SELECT DISTINCT group_name FROM public.groups "\
-                      f"WHERE institute = '{institute}' AND course = {course};"
-                cur.execute(sql)
+                      f"WHERE institute = %s AND course = {course};"
+                cur.execute(sql, (institute))
                 groups = cur.fetchall()
                 group_list = list()
                 for group in groups:
@@ -260,8 +259,8 @@ class DataBase:
         """
         try:
             with self._connection.cursor() as cur:
-                sql = f"SELECT id FROM public.groups WHERE group_name = '{group_name}';"
-                cur.execute(sql)
+                sql = f"SELECT id FROM public.groups WHERE group_name = %s;"
+                cur.execute(sql, (group_name))
                 return cur.fetchone()[0]
         except pymysql.err.OperationalError as _ex:
             if errs <= 3:
@@ -284,15 +283,15 @@ class DataBase:
         """
         try:
             with self._connection.cursor() as cur:
-                sql = f"SELECT tg_id FROM public.users WHERE id = {tg_id}"
+                sql = f"SELECT id FROM public.users WHERE id = {tg_id}"
                 cur.execute(sql)
                 if len(list(cur.fetchall())) != 0:
-                    sql = f"UPDATE public.users SET group_name = '{group}' WHERE id = {tg_id}"
+                    sql = f"UPDATE public.users SET group_id = {self.r_get_group_id(group_name=group)}" \
+                          f" WHERE id = {tg_id}"
                 else:
-                    group = self.r_get_group_id(group_name=group)
                     sql = f"INSERT INTO public.users (id, name, group_id) VALUES "\
-                          f"({tg_id}, '{name}', {group});"
-                cur.execute(sql)
+                          f"({tg_id}, %s, {self.r_get_group_id(group_name=group)});"
+                cur.execute(sql, (name))
                 self._connection.commit()
             return True
         except pymysql.err.OperationalError as _ex:
@@ -379,9 +378,8 @@ class DataBase:
         try:
             with self._connection.cursor() as cur:
                 sql = f"INSERT INTO public.pairs (group, even_week, day_of_week, ordinal, lesson, teacher, type, " \
-                      f"location) VALUES ('{group}', {even_week}, {day_of_week}, {ordinal}, '{lesson}', '{teacher}'," \
-                      f"'{pair_type}', '{location}');"
-                cur.execute(sql)
+                      f"location) VALUES (%s, {1 if even_week else 0}, {day_of_week}, {ordinal}, %s, %s, %s, %s);"
+                cur.execute(sql, (group, lesson, teacher, pair_type, location))
                 self._connection.commit()
                 cur.execute("SELECT id FROM public.pairs ORDER BY id DESK LIMIT 1;")
                 return True
@@ -426,21 +424,6 @@ class DataBase:
                 # Реинициализация объекта для переподключения к БД
                 self.__init__()
                 return self.w_execute_current_sql()
-            else:
-                logging.error("Ошибка работы с БД. Выход из метода")
-                return False
-
-    def rw_execute(self, sql: str):
-        try:
-            with self._connection.cursor() as cur:
-                cur.execute(sql)
-                return True
-        except pymysql.err.OperationalError as _ex:
-            if errs <= 3:
-                logging.error("Ошибка подключения, переподключение...")
-                # Реинициализация объекта для переподключения к БД
-                self.__init__()
-                return self.rw_execute(sql)
             else:
                 logging.error("Ошибка работы с БД. Выход из метода")
                 return False

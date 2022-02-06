@@ -34,3 +34,5 @@ class Logger:
         self._log_file.close()
         self._log_file = open(self._file_name, 'a')
         return logs
+
+logger = Logger()

@@ -7,13 +7,12 @@ import os
 from aiogram import Bot, Dispatcher, executor
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, \
-                          ReplyKeyboardRemove, ParseMode
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, ParseMode
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
-from config import DAYS_OF_WEEK, DAYS_OF_WEEK_FULL, DAYS_OF_WEEK_FULL_UPPER, SETTINGS_DESCRIPTIONS_MSG, PARAMS, ADMINS, ADMIN_PASSWD
+from config import *
 from database import db
-from debugs import *
+from debugs import logger, debug_log
 from rkm import *
 
 
@@ -37,8 +36,6 @@ logging.basicConfig(level=logging.INFO)
 # Инициализация бота и "слушателя" сообщений
 bot = Bot(token=os.environ['BOT_TOKEN'])
 dp = Dispatcher(bot, storage=MemoryStorage())
-
-logger = Logger()
 
 debug_save_error = logger.log
 
@@ -116,6 +113,10 @@ def get_pairs_today(user_id: int):
         else:
             msg += "*Не удалось получить информацию о группе*\n" \
                    "Попробуйте исправить это при помощи кнопки \"Сменить группу\""
+
+    else:
+        msg = "*Спрашивать расписание на воскресенье... Гениально*"
+
     return msg
 
 
@@ -137,6 +138,21 @@ def get_pairs_tomorrow(user_id: int):
         else:
             msg += "*Не удалось получить информацию о группе*\n" \
                    "Попробуйте исправить это при помощи кнопки \"Сменить группу\""
+    else:
+        # Пофиксим дату
+        today = 1
+        even_week = not even_week
+
+        # И получим расписание
+        group = db.r_get_user_group(tg_id=user_id)
+        if group:
+            pairs = db.r_get_pairs_by_group(day_of_week=today+1, even_week=even_week, group=group)
+            msg += print_pairs(pairs, today+1, even_week,
+                               with_id=db.r_get_user_setting(PARAMS['show_id'], user_id))
+        else:
+            msg += "*Не удалось получить информацию о группе*\n" \
+                   "Попробуйте исправить это при помощи кнопки \"Сменить группу\""
+
     return msg
 
 
