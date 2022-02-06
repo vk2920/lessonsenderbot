@@ -283,13 +283,15 @@ class DataBase:
         """
         try:
             with self._connection.cursor() as cur:
+                tg_id = str(tg_id)
+                group_id = str(group_id)
                 sql = f"SELECT id FROM public.users WHERE id = {tg_id}"
                 cur.execute(sql)
                 if len(list(cur.fetchall())) != 0:
-                    sql = f"UPDATE public.users SET group_id = {group_id}, name = %s WHERE id = {tg_id}"
+                    sql = f"UPDATE public.users SET group_id = {group_id}, name = '{name}' WHERE id = {tg_id}"
                 else:
-                    sql = f"INSERT INTO public.users (id, name, group_id) VALUES ({tg_id}, %s, {group_id});"
-                cur.execute(sql, (name))
+                    sql = f"INSERT INTO public.users (id, name, group_id) VALUES ({tg_id}, '{name}', {group_id});"
+                cur.execute(sql)
                 self._connection.commit()
             return True
         except pymysql.err.OperationalError as _ex:
