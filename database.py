@@ -272,11 +272,11 @@ class DataBase:
                 logging.error("Ошибка работы с БД. Выход из метода")
                 return False
 
-    def w_register_user_by_id(self, tg_id: int, name: str, group: str, errs: int = 0):
+    def w_register_user_by_id(self, tg_id: int, name: str, group_id: int, errs: int = 0):
         """
         :param tg_id: id пользователя в ТГ (int)
         :param name: ФИО пользователя
-        :param group: группа пользователя в формате
+        :param group_id: ID группы пользователя
         :param errs: количество ошибок (применяется для ограничения рекурсивного
             выполнения при проблемах с подключением)
         :return: True, если запись произведена успешно, иначе False
@@ -286,11 +286,11 @@ class DataBase:
                 sql = f"SELECT id FROM public.users WHERE id = {tg_id}"
                 cur.execute(sql)
                 if len(list(cur.fetchall())) != 0:
-                    sql = f"UPDATE public.users SET group_id = {self.r_get_group_id(group_name=group)}" \
+                    sql = f"UPDATE public.users SET group_id = {group_id}" \
                           f" WHERE id = {tg_id}"
                 else:
                     sql = f"INSERT INTO public.users (id, name, group_id) VALUES "\
-                          f"({tg_id}, %s, {self.r_get_group_id(group_name=group)});"
+                          f"({tg_id}, %s, {group_id});"
                 cur.execute(sql, (name))
                 self._connection.commit()
             return True
